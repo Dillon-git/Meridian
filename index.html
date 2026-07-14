@@ -40,8 +40,8 @@
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html{height:100%}
 body{background:var(--bg);color:var(--ink);font-family:var(--sans);min-height:100%;
-  font-size:16px;line-height:1.6;letter-spacing:.1px}
-#app{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 20px 110px}
+  font-size:16px;line-height:1.6;letter-spacing:.1px;min-height:100dvh}
+#app{max-width:640px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 16px) 20px 110px;min-height:calc(100dvh - 40px)}
 h1,h2,h3{font-weight:650;letter-spacing:-.2px}
 .eyebrow{font-size:11px;letter-spacing:1.8px;text-transform:uppercase;color:var(--ink3);font-weight:600;margin-bottom:6px}
 .hairline{height:1px;background:var(--line2);margin:22px 0}
@@ -230,6 +230,10 @@ details.help a{color:var(--accent)}
 .glossitem h4{font-size:15px;font-weight:650}
 .glossitem p{font-size:13.5px;color:var(--ink2);margin-top:3px}
 .glossitem .gcat{font-size:11px;color:var(--ink3)}
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:2px}
+.inboxtile{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.setsec{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:18px 0 8px}
+.setbtn{display:block;width:100%;text-align:left;margin-bottom:8px}
 .histbox{border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:10px;font-size:13px;color:var(--ink3)}
 .artif{margin-top:14px}
 .artif h5{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;font-weight:600}
@@ -240,7 +244,7 @@ details.help a{color:var(--accent)}
 <div id="app"></div>
 <nav id="nav" style="display:none"><div class="inner">
   <button data-v="today"><span class="ico">◉</span>Today</button>
-  <button data-v="inbox"><span class="ico">▼</span>Inbox</button>
+  <button data-v="news"><span class="ico">☰</span>News</button>
   <button data-v="library"><span class="ico">▤</span>Library</button>
   <button data-v="review"><span class="ico">◈</span>Review</button>
   <button data-v="progress"><span class="ico">△</span>Stats</button>
@@ -265,7 +269,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -411,6 +415,7 @@ async function fetchData(){
     const txt=await gh(`/repos/${repo()}/contents/${REPO_DATA}`,{},true);
     const d=JSON.parse(txt);
     if(d&&d.v===3&&d.generated!==DATA.generated){
+      if(DATA.generated)localStorage.setItem("meridian.prevGen",DATA.generated);
       DATA=d;localStorage.setItem("meridian.data",txt);render();
     }
   }catch(e){console.warn("data fetch",e);}
@@ -429,6 +434,7 @@ function mergeDB(rem){
   for(const k in DB.itemState){const a=out.itemState[k],b=DB.itemState[k];
     if(!a||(b.u||0)>=(a.u||0))out.itemState[k]=b;}
   out.inboxDecisions=Object.assign({},rem.inboxDecisions,DB.inboxDecisions);
+  out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   const rl=rem.meta||{},ll=DB.meta;
   out.meta.xp=Math.max(rl.xp||0,ll.xp||0);
   out.meta.revlog=Object.assign({},rl.revlog);for(const d in ll.revlog){out.meta.revlog[d]=Math.max(out.meta.revlog[d]||0,ll.revlog[d]);}
@@ -576,13 +582,26 @@ function nextLessonItem(){
   return items().find(it=>it.lane==="learn"&&artifact(it,"lesson")&&!DB.done[it.id]&&(!it.req||DB.done[it.req]));
 }
 function doyIndex(n){return n?Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/DAY)%n:0;}
+function prevGenTime(){const p=localStorage.getItem("meridian.prevGen");return p?Date.parse(p)||0:0;}
+function isFresh(it){return it.updated&&Date.parse(it.updated)>prevGenTime()&&prevGenTime()>0;}
+function freshDot(it){return isFresh(it)?'<span class="dot" title="updated overnight"></span>':"";}
+function resolveUnit(u){
+  if(!u.item)return u;
+  const it=item(u.item.id);if(!it)return u;
+  const m=u.id.match(/#([cqpd])(\d+)$/);if(!m)return u;
+  const key={c:"cards",q:"quiz",p:"prompts",d:"drills"}[m[1]];
+  const arr=artifact(it,key)||[];
+  return Object.assign({},u,{a:arr[+m[2]]||u.a,item:it});
+}
 </script>
 <script>
 "use strict";
 /* ===================== VIEWS ===================== */
 function header(sub){
+  const pend=DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]).length;
   return `<div class="brand"><h1><span class="mark">◆</span> Meridian</h1>
-    <span style="display:flex;align-items:center;gap:10px">
+    <span style="display:flex;align-items:center;gap:8px">
+    <span class="inboxtile" onclick="APP.go('inbox')" title="Inbox">▼${pend?" "+pend:""}</span>
     <span class="streakpill">🔥 ${DB.meta.streak||0}</span>
     <span class="dim" style="font-size:14px;cursor:pointer" onclick="APP.settings()"><span class="syncdot ${syncState}"></span>⚙</span></span></div>
     <div class="datebar">${sub||fmtDate()}</div>`;
@@ -611,10 +630,13 @@ function vToday(){
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
     ${due+fresh?`${due?due+" due":""}${due&&fresh?" · ":""}${fresh?fresh+" new":""} to recall`:"Reviews clear"}<br>
     ${lesson?"1 lesson · "+artifact(lesson,"lesson").min+" min":"No lesson queued"}${chDone?"":" · 1 drill"}</div></div>
-    <div class="btnrow" style="margin-top:12px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">Continue session</button></div>
+    <div class="btnrow" style="margin-top:12px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">Continue session</button>
+    <button class="btn ghost small" onclick="APP.logExternal()">+ Log external</button></div>
   </div>
   ${pend?`<div class="card tap" onclick="APP.go('inbox')"><div class="row"><div><div class="eyebrow">Inbox</div>
     <h3>${pend} item${pend>1?"s":""} awaiting your lane decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
+  ${(()=>{const fr=items().filter(isFresh).slice(0,4);return fr.length?`<div class="card"><div class="eyebrow">Updated overnight</div>
+    ${fr.map(it=>`<div class="listitem" onclick="APP.item('${it.id}')" style="border:none;padding:8px 0"><h4>${esc(it.title)}<span class="dot"></span></h4></div>`).join("")}</div>`:"";})()}
   <div class="card tap" onclick="APP.go('review')">
     <div class="row"><div><div class="eyebrow">Step 1 · Recall</div><h3>Review</h3>
     <div class="body">${due?due+" due":"Nothing overdue"}${fresh?" · "+fresh+" new":""}</div></div>
@@ -634,31 +656,66 @@ function vToday(){
 }
 
 /* ---------- Inbox ---------- */
-let INBOXFILES=null;
+let INBOXFILES=null, CAPLANE="auto";
+const CAPLANES=[["auto","Let Claude decide"],["gist","Gist"],["understand","Understand"],["learn","Learn"],["retrieve","Retrieve"],["evaluate","Evaluate"]];
 function vInbox(){
   const pend=pendingProposals();
   let html=header("Inbox")+`
-  <div class="btnrow" style="margin-top:0;margin-bottom:14px">
-    <button class="btn solid" onclick="APP.capture()">+ Capture text or link</button>
-    <button class="btn ghost small" onclick="APP.refreshInbox()">Refresh</button></div>`;
+  <div class="card lux">
+    <div class="eyebrow">Capture anything</div>
+    <textarea id="capB" placeholder="Paste a link, an idea, article text — or attach a file below" style="min-height:84px;margin-top:8px"></textarea>
+    <div class="eyebrow" style="margin-top:4px">How should it be processed?</div>
+    <div class="chips capchips" style="margin-bottom:8px">${CAPLANES.map(([id,name])=>`<button class="chip ${CAPLANE===id?"active":""}" onclick="APP.capLane('${id}')">${name}</button>`).join("")}</div>
+    <input type="text" id="capI" placeholder="Anything specific you want Claude to do with it? (optional)">
+    <div class="btnrow" style="margin-top:4px">
+      <button class="btn solid" style="flex:1" onclick="APP.saveCapture()">Send to inbox</button>
+      <button class="btn ghost" onclick="document.getElementById('capF').click()">📎 Attach</button>
+      <input type="file" id="capF" accept="image/*,.pdf,.md,.txt,.csv" style="display:none" onchange="APP.captureFile(this)">
+    </div>
+  </div>
+  <div class="btnrow" style="margin:0 0 16px">
+    <button class="btn small" onclick="APP.processNow()">⚡ Process now</button>
+    <button class="btn small ghost" onclick="APP.refreshInbox()">Refresh</button>
+  </div>`;
   if(pend.length){
-    html+=`<div class="eyebrow">Awaiting lane decision</div>`+pend.map(it=>`
-    <div class="card"><div class="row"><h3 style="font-size:16px">${esc(it.title)}</h3>${laneChip(it.lane)}</div>
-    <div class="body">${esc(it.summary||it.src||"")}</div>
-    <div class="btnrow">
-      <button class="btn small solid" onclick="APP.acceptLane('${it.id}')">Accept ${esc(laneName(it.lane))}</button>
-      <button class="btn small ghost" onclick="APP.pickLane('${it.id}')">Different lane</button>
-      <button class="btn small ghost" onclick="APP.item('${it.id}')">Open</button></div></div>`).join("");
+    html+=`<div class="eyebrow">Awaiting your decision</div>`+pend.map(it=>{
+      const opts=(it.suggestions||[]).map((s,i)=>`<button class="btn small ghost" onclick="APP.suggest('${it.id}',${i})">${esc(s.label)}</button>`).join("");
+      return `<div class="card"><div class="row"><h3 style="font-size:16px">${esc(it.title)}${freshDot(it)}</h3>${laneChip(it.lane)}</div>
+      <div class="body">${esc(it.summary||it.src||"")}</div>
+      <div class="btnrow">
+        <button class="btn small solid" onclick="APP.acceptLane('${it.id}')">Accept ${esc(laneName(it.lane))}</button>
+        <button class="btn small ghost" onclick="APP.pickLane('${it.id}')">Different lane</button>
+        ${opts}
+        <button class="btn small ghost" onclick="APP.item('${it.id}')">Open</button></div></div>`;}).join("");
   }else{
-    html+=`<div class="card"><div class="body">No items awaiting a lane decision. New material lands here after processing.</div></div>`;
+    html+=`<p class="dim" style="font-size:13.5px;margin-bottom:14px">No items awaiting a decision.</p>`;
   }
   if(INBOXFILES===null){html+=`<p class="dim" style="font-size:13px">Checking raw inbox…</p>`;APP.refreshInbox(true);}
   else if(INBOXFILES.length){
-    html+=`<div class="eyebrow" style="margin-top:18px">Unprocessed captures (${INBOXFILES.length})</div>
+    html+=`<div class="eyebrow" style="margin-top:12px">Queued for processing (${INBOXFILES.length})</div>
     <div class="card"><div class="body">${INBOXFILES.map(esc).join("<br>")}</div>
-    <p class="dim" style="font-size:12.5px;margin-top:8px">These process automatically overnight, or say "process my inbox" to Claude.</p></div>`;
-  }else{
-    html+=`<p class="dim" style="font-size:13px;margin-top:14px">Raw inbox is empty.</p>`;
+    <p class="dim" style="font-size:12.5px;margin-top:8px">Fast pass hourly via ⚡ (Mac must have Claude open) · full treatment nightly at 6am.</p></div>`;
+  }
+  return html;
+}
+
+/* ---------- Newsletters ---------- */
+function vNews(){
+  const all=(DATA.news||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+  const acts=DB.newsActions||{};
+  const live=all.filter(n=>!acts[n.id]||acts[n.id].a==="keep");
+  let html=header("Newsletters");
+  if(!live.length)return html+`<div class="empty"><div class="glyph">☰</div><h3 style="margin-bottom:6px">Nothing new</h3>
+    <p style="font-size:14px">Weekday briefings from your sources land here by 7am.<br>Read cards are cleared each morning.</p></div>`;
+  let lastDate="";
+  for(const n of live){
+    if(n.date!==lastDate){lastDate=n.date;html+=`<div class="eyebrow" style="margin-top:14px">${esc(n.src||"Briefing")} · ${esc(n.date)}</div>`;}
+    html+=`<div class="card"><h3 style="font-size:16px">${esc(n.title)}</h3>
+    <div class="body" style="margin-top:4px">${md(n.body)}</div>
+    ${n.link?`<p style="margin-top:6px;font-size:13px"><a style="color:var(--accent)" href="${esc(n.link)}" target="_blank">source →</a></p>`:""}
+    <div class="btnrow">
+      <button class="btn small" onclick="APP.newsRead('${n.id}')">✓ Mark as read</button>
+      <button class="btn small ghost" onclick="APP.newsLib('${n.id}')">＋ Add to library</button></div></div>`;
   }
   return html;
 }
@@ -697,7 +754,7 @@ function vLibrary(){
   return header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← All</button>
   <h2 style="font-size:21px;margin-bottom:10px">${esc(title)}</h2>
   ${list.length?list.map(it=>`<div class="card tap" onclick="APP.item('${it.id}')"><div class="row">
-    <div><h3 style="font-size:15.5px">${esc(it.title)}</h3>
+    <div><h3 style="font-size:15.5px">${esc(it.title)}${freshDot(it)}</h3>
     <div class="body">${laneChip(it.lane)} ${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")}</div></div>
     ${DB.done[it.id]?'<span class="check">✓</span>':'<span class="dim">→</span>'}</div></div>`).join(""):
   `<div class="empty"><p>Nothing here yet.</p></div>`}`;
@@ -789,7 +846,7 @@ function vReview(){
       ${FLOW&&l?`<button class="btn solid" onclick="APP.item('${l.id}')">Next: today's lesson →</button>`:""}
       <button class="btn ${FLOW&&l?"ghost":"solid"}" onclick="APP.go('today')">Back to Today</button></div></div>`;
   }
-  const u=s.q[s.i];
+  const u=resolveUnit(s.q[s.i]);
   const head=header("Review · "+(s.i+1)+" of "+s.q.length);
   const src=u.item?catOf(u.cat).name:(u.src||"Your note");
   let inner=`<div class="eyebrow">${esc(src)} · ${u.type==="card"?"recall":u.type==="mcq"?"quiz":u.type==="prompt"?"short answer":"scenario"}</div>`;
@@ -972,21 +1029,56 @@ const APP={
   refreshInbox(silent){
     listInboxFiles().then(f=>{INBOXFILES=f;if(VIEW.name==="inbox")render();});
     if(!silent)toast("Refreshing…");},
-  capture(){
-    openSheet(`<h3>Capture</h3>
-    <label class="f">Title (optional)</label><input type="text" id="capT" placeholder="What is this?">
-    <label class="f">Text, notes, or a URL</label><textarea id="capB" placeholder="Paste a link, an idea, article text — anything worth learning"></textarea>
-    <div class="btnrow"><button class="btn solid" onclick="APP.saveCapture()">Send to inbox</button>
-    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>
-    <p class="dim" style="font-size:12px;margin-top:10px">Lands in your private repo's _inbox/. Processed overnight or on request.</p>`);},
+  capLane(id){CAPLANE=id;render();},
   async saveCapture(){
-    const t=$("#capT").value.trim(),b=$("#capB").value.trim();
+    const b=$("#capB").value.trim(), instr=$("#capI").value.trim();
     if(!b)return toast("Nothing to capture");
     const name="capture-"+new Date().toISOString().replace(/[:T]/g,"-").slice(0,16)+".md";
-    const content=`---\ncaptured: ${new Date().toISOString()}\ntitle: ${t||"(untitled)"}\nvia: meridian-app\n---\n\n${b}\n`;
-    try{await captureToInbox(name,content);closeSheet();INBOXFILES=null;toast("Captured to inbox ✓");render();}
+    const content=`---\ncaptured: ${new Date().toISOString()}\nvia: meridian-app\nrequested_lane: ${CAPLANE}\ninstruction: ${instr||"(none)"}\n---\n\n${b}\n`;
+    try{await captureToInbox(name,content);INBOXFILES=null;CAPLANE="auto";toast("Captured ✓");render();}
     catch(e){toast("Couldn't reach GitHub — try again");}
   },
+  captureFile(inp){
+    const f=inp.files[0];if(!f)return;
+    if(f.size>3*1024*1024)return toast("Max 3 MB per file");
+    const r=new FileReader();
+    r.onload=async()=>{
+      const b64=r.result.split(",")[1];
+      const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+      const name="capture-"+new Date().toISOString().replace(/[:T]/g,"-").slice(0,16)+"-"+safe;
+      try{
+        await gh(`/repos/${repo()}/contents/_inbox/${name}`,{method:"PUT",body:JSON.stringify({message:"capture from app",content:b64})});
+        INBOXFILES=null;toast("Uploaded ✓");render();
+      }catch(e){toast("Upload failed — try again");}
+    };
+    r.readAsDataURL(f);
+  },
+  async processNow(){
+    try{
+      await captureToInbox(".process-request","requested: "+new Date().toISOString()+"\n");
+      toast("Requested — runs within the hour if your Mac has Claude open");
+    }catch(e){toast("Couldn't reach GitHub");}
+  },
+  newsRead(id){DB.newsActions[id]={a:"read",at:Date.now()};saveLocal();render();},
+  newsLib(id){DB.newsActions[id]={a:"lib",at:Date.now()};saveLocal();toast("Will be added to your Gist lane tonight");render();},
+  suggest(id,i){
+    const it=DATA.items.find(x=>x.id===id);const s=it&&(it.suggestions||[])[i];if(!s)return;
+    DB.inboxDecisions[id]={lane:it.lane,suggestion:s.label,at:todayStr()};
+    setItemState(id,{});
+    toast("Noted — Claude will do this in the next run");render();},
+  logExternal(){
+    openSheet(`<h3>Log external learning</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:10px">NotebookLM audio, a course, practice drills — anything done outside the app. Counts toward today's ring.</p>
+    <label class="f">Minutes</label><input type="text" id="exM" inputmode="numeric" placeholder="e.g. 25">
+    <label class="f">What was it?</label><input type="text" id="exW" placeholder="e.g. NotebookLM audio — ML ranking topic">
+    <div class="btnrow"><button class="btn solid" onclick="APP.saveExternal()">Log it</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  saveExternal(){
+    const m=parseInt($("#exM").value,10),w=$("#exW").value.trim();
+    if(!m||m<1)return toast("Enter minutes");
+    logMin(Math.min(m,240));bumpStreak();
+    DB.notes.push({id:"n"+Date.now(),title:"External learning — "+todayStr(),body:(w||"logged")+" ("+m+" min)",u:Date.now()});
+    saveLocal();closeSheet();toast("+"+m+" min logged");render();},
   acceptLane(id){
     const it=DATA.items.find(x=>x.id===id);if(!it)return;
     DB.inboxDecisions[id]={lane:it.lane,at:todayStr()};
@@ -1116,21 +1208,28 @@ const APP={
   closeSheet,
   settings(){
     openSheet(`<h3>Settings</h3>
-    <label class="f">Appearance</label><select id="sth">${["light","dark","auto"].map(s=>`<option ${themePref()===s?"selected":""}>${s}</option>`).join("")}</select>
+    <div class="setsec">Guide</div>
+    <button class="btn setbtn" onclick="APP.guide()">📖 How this system works — read me</button>
+    <button class="btn setbtn" onclick="APP.logExternal()">➕ Log learning done outside the app</button>
+    <div class="setsec">Appearance</div>
+    <select id="sth">${["light","dark","auto"].map(s=>`<option ${themePref()===s?"selected":""}>${s}</option>`).join("")}</select>
+    <div class="setsec">Connection — your private repo</div>
     <label class="f">GitHub token</label><input type="password" id="stok" value="${esc(token())}" autocomplete="off">
-    <label class="f">Repository</label><input type="text" id="srepo" value="${esc(repo())}">
-    <div class="btnrow">
-      <button class="btn solid" onclick="APP.saveSettings()">Save &amp; sync</button>
-      <button class="btn small ghost" onclick="APP.guide()">How this system works</button>
-      <button class="btn small ghost" onclick="APP.exportData()">Export JSON</button>
-      <button class="btn small danger" onclick="APP.reset()">Reset device</button></div>
-    <p class="dim" style="font-size:12px;margin-top:14px">Content refreshes from your repo automatically. Say "process my inbox" to Claude for on-demand processing.</p>`);},
+    <label class="f">Repository (owner/repo)</label><input type="text" id="srepo" value="${esc(repo())}">
+    <button class="btn solid setbtn" style="text-align:center" onclick="APP.saveSettings()">Save connection &amp; sync now</button>
+    <div class="setsec">Your data</div>
+    <button class="btn ghost setbtn" onclick="APP.exportData()">⬇ Download a backup of my progress</button>
+    <button class="btn danger setbtn" onclick="APP.reset()">Erase app data on this device only</button>
+    <p class="dim" style="font-size:12px;margin-top:10px">Erasing this device never touches your repo — progress restores on next sign-in.</p>`);},
   saveSettings(){
     localStorage.setItem("meridian.theme",$("#sth").value);applyTheme();
     localStorage.setItem("meridian.token",$("#stok").value.trim());
     localStorage.setItem("meridian.repo",$("#srepo").value.trim());
     closeSheet();Promise.all([pull(),fetchData()]).then(()=>{render();toast("Synced");});},
   guide(){
+    if(DATA.guide){openSheet(`<h3>How this system works</h3><div class="prose" style="font-size:14px">${md(DATA.guide)}</div>
+      <p class="dim" style="font-size:12px;margin-top:10px">This guide auto-updates whenever the workflow changes (last: ${esc((DATA.guideUpdated||"").slice(0,10))}).</p>
+      <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);return;}
     openSheet(`<h3>How this system works</h3>
     <div style="font-size:14px;line-height:1.65;color:var(--ink2)">
     <p><strong style="color:var(--ink)">The system has four layers:</strong> capture → synthesis → learn → apply. You capture anything (here via <em>Inbox → Capture</em>, or by dropping files in the vault's <code>_inbox/</code>). Claude processes it overnight into one of five lanes. You learn daily in this app. You apply weekly via challenges.</p>
@@ -1171,6 +1270,7 @@ function render(){
   if(setup)html=vSetup();
   else switch(VIEW.name){
     case "inbox":html=vInbox();break;
+    case "news":html=vNews();break;
     case "library":html=vLibrary();break;
     case "item":html=vItem();break;
     case "review":html=vReview();break;
