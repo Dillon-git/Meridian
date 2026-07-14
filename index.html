@@ -212,12 +212,12 @@ details.help a{color:var(--accent)}
 .chip{border:1px solid var(--line);background:var(--card);color:var(--ink2);border-radius:999px;padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
 .chip.active{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
 .lanechip{display:inline-block;font-size:10.5px;letter-spacing:.6px;text-transform:uppercase;font-weight:700;border-radius:6px;padding:3px 8px}
-.lane-retrieve{background:var(--green-soft);color:var(--green)}
-.lane-gist{background:var(--amber-soft);color:var(--amber)}
+.lane-filter{background:var(--amber-soft);color:var(--amber)}
+.lane-master{background:var(--green-soft);color:var(--green)}
 .lane-understand{background:#E6F1FB;color:#185FA5}
 [data-theme=dark] .lane-understand{background:#12283b;color:#7db4e8}
-.lane-learn{background:var(--accent-soft);color:var(--accent)}
-.lane-evaluate{background:var(--red-soft);color:var(--red)}
+
+
 .choice{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);
   border-radius:12px;padding:12px 14px;font-size:14.5px;margin-bottom:8px;cursor:pointer;font-family:var(--sans)}
 .choice.correct{border-color:var(--green);background:var(--green-soft)}
@@ -232,6 +232,24 @@ details.help a{color:var(--accent)}
 .glossitem .gcat{font-size:11px;color:var(--ink3)}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:2px}
 .inboxtile{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;cursor:pointer}
+
+.tmrbox{font-variant-numeric:tabular-nums;font-size:26px;font-weight:650;color:var(--ink)}
+.heat{display:grid;grid-template-columns:repeat(26,1fr);gap:3px;margin-top:10px}
+.heat i{aspect-ratio:1;border-radius:2.5px;background:var(--bg2)}
+.heat i.h1{background:var(--accent-soft)}.heat i.h2{background:var(--accent-dim)}.heat i.h3{background:var(--accent)}
+.donutrow{display:flex;gap:16px;align-items:center}
+.legend{font-size:12.5px;color:var(--ink2);line-height:1.9}
+.legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px}
+.stagenav{display:flex;gap:6px;margin:10px 0 14px}
+.stagenav button{flex:1;border:1px solid var(--line2);background:var(--card);color:var(--ink3);border-radius:10px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer}
+.stagenav button.cur{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+.stagenav button.avail{color:var(--ink2)}
+details.prev{border:1px solid var(--line2);border-radius:12px;padding:10px 14px;margin-top:10px}
+details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer}
+.filelist{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.filelist span{background:var(--bg2);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--ink2)}
+.filelist span b{cursor:pointer;color:var(--red);margin-left:6px;font-weight:700}
+.quizopt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:14px;margin-bottom:8px;cursor:pointer;font-family:var(--sans)}
 .setsec{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:18px 0 8px}
 .setbtn{display:block;width:100%;text-align:left;margin-bottom:8px}
 .histbox{border:1px dashed var(--line);border-radius:12px;padding:12px;margin-top:10px;font-size:13px;color:var(--ink3)}
@@ -260,7 +278,10 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const DAY=86400000;
 const clamp=(x,lo,hi)=>Math.min(hi,Math.max(lo,x));
 const todayStr=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-const LANES=[["retrieve","Retrieve","Exact facts, fast"],["gist","Gist","Orientation, relevance"],["understand","Understand","Mental models"],["learn","Learn","Durable recall"],["evaluate","Evaluate","Judgment, synthesis"]];
+const LANES=[["filter","Filter","Triage in \u226410 min"],["understand","Understand","Build the mental model"],["master","Master","Critique, connect, apply"]];
+const LANE_LEGACY={retrieve:"filter",gist:"filter",learn:"master",evaluate:"master",filter:"filter",understand:"understand",master:"master"};
+const laneRank=id=>LANES.findIndex(l=>l[0]===id);
+const LANE_ARTS={filter:["summary","facts"],understand:["note"],master:["lesson","cards","quiz","prompts","drills","memo"]};
 const laneName=id=>(LANES.find(l=>l[0]===id)||["","?"])[1];
 const laneChip=id=>`<span class="lanechip lane-${esc(id)}">${esc(laneName(id))}</span>`;
 
@@ -269,12 +290,12 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
   DB.meta=Object.assign(defaultDB().meta,DB.meta||{});}catch(e){}
-let VIEW={name:"today",p:null}, libTab="lanes", syncState="off", syncTimer=null, FLOW=false, stateSha=null;
+let VIEW={name:"today",p:null}, syncState="off", syncTimer=null, FLOW=false, stateSha=null;
 
 function saveLocal(){DB.updatedAt=Date.now();localStorage.setItem("meridian.db",JSON.stringify(DB));queueSync();}
 function token(){return localStorage.getItem("meridian.token")||"";}
@@ -295,7 +316,7 @@ if(window.matchMedia)window.matchMedia("(prefers-color-scheme: dark)").addEventL
 function itemState(id){return DB.itemState[id]||{};}
 function items(){return DATA.items.map(it=>{
   const st=itemState(it.id);
-  return Object.assign({},it,{lane:st.lane||it.lane,cats:st.cats||it.cats,edits:st.edits||{},history:(it.history||[]).concat(st.history||[])});
+  return Object.assign({},it,{lane:LANE_LEGACY[st.lane||it.lane]||"filter",cats:st.cats||it.cats,edits:st.edits||{},history:(it.history||[]).concat(st.history||[])});
 });}
 function item(id){return items().find(x=>x.id===id);}
 function catOf(id){return DATA.categories.find(c=>c.id===id)||{id,name:id,glyph:"·"};}
@@ -306,7 +327,7 @@ function artifact(it,key){return (it.edits&&it.edits[key])||(it.artifacts&&it.ar
 function allUnits(){
   const out=[];
   for(const it of items()){
-    if(it.lane!=="learn"&&it.lane!=="retrieve")continue;
+    if(it.lane!=="master")continue;
     const push=(arr,type,pref)=>((arr||[]).forEach((a,i)=>out.push({id:it.id+"#"+pref+i,type,a,item:it,cat:(it.cats||[])[0]||"misc"})));
     push(artifact(it,"cards"),"card","c");
     push(artifact(it,"quiz"),"mcq","q");
@@ -384,7 +405,6 @@ function grade(unit,g){
   const gl=DB.meta.gradelog[t]||{n:0,a:0};gl.n++;if(g===0)gl.a++;DB.meta.gradelog[t]=gl;
   const cat=unit.cat||"misc";
   const cl=DB.meta.catlog[cat]||{n:0,a:0};cl.n++;if(g===0)cl.a++;DB.meta.catlog[cat]=cl;
-  DB.meta.minlog[t]=Math.round(((DB.meta.minlog[t]||0)+0.5)*10)/10;
   DB.meta.xp+=2;bumpStreak();saveLocal();
 }
 function ivPreview(id,g){
@@ -435,6 +455,8 @@ function mergeDB(rem){
     if(!a||(b.u||0)>=(a.u||0))out.itemState[k]=b;}
   out.inboxDecisions=Object.assign({},rem.inboxDecisions,DB.inboxDecisions);
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
+  out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
+  out.goals=mergeItems(rem.goals,DB.goals);
   const rl=rem.meta||{},ll=DB.meta;
   out.meta.xp=Math.max(rl.xp||0,ll.xp||0);
   out.meta.revlog=Object.assign({},rl.revlog);for(const d in ll.revlog){out.meta.revlog[d]=Math.max(out.meta.revlog[d]||0,ll.revlog[d]);}
@@ -496,7 +518,8 @@ async function listInboxFiles(){
 
 /* ---------- render helpers ---------- */
 function md(body,dgs){
-  const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
+  const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
   return String(body||"").trim().split(/\n\n+/).map(p=>{
     p=p.trim();
     const dm=p.match(/^\{\{DIAGRAM:(\d+)\}\}$/);
@@ -585,6 +608,23 @@ function doyIndex(n){return n?Math.floor((Date.now()-new Date(new Date().getFull
 function prevGenTime(){const p=localStorage.getItem("meridian.prevGen");return p?Date.parse(p)||0:0;}
 function isFresh(it){return it.updated&&Date.parse(it.updated)>prevGenTime()&&prevGenTime()>0;}
 function freshDot(it){return isFresh(it)?'<span class="dot" title="updated overnight"></span>':"";}
+let TICKSEC=0;
+function activeMinToday(){return (DB.meta.minlog||{})[todayStr()]||0;}
+function startTicker(){
+  setInterval(()=>{
+    if(document.visibilityState!=="visible")return;
+    TICKSEC++;
+    if(TICKSEC>=60){TICKSEC=0;const t=todayStr();DB.meta.minlog[t]=Math.round(((DB.meta.minlog[t]||0)+1)*10)/10;bumpStreak();saveLocal();}
+    const el=document.getElementById("tmr");
+    if(el){
+      const total=Math.round(activeMinToday()*60)+TICKSEC, goal=40*60;
+      const rem=goal-total;
+      const mm=v=>String(Math.floor(Math.abs(v)/60)).padStart(2,"0")+":"+String(Math.floor(Math.abs(v))%60).padStart(2,"0");
+      el.textContent=rem>=0?mm(rem):"+"+mm(-rem);
+      el.style.color=rem>=0?"":"var(--green)";
+    }
+  },1000);
+}
 function resolveUnit(u){
   if(!u.item)return u;
   const it=item(u.item.id);if(!it)return u;
@@ -593,10 +633,9 @@ function resolveUnit(u){
   const arr=artifact(it,key)||[];
   return Object.assign({},u,{a:arr[+m[2]]||u.a,item:it});
 }
-</script>
-<script>
+</script><script>
 "use strict";
-/* ===================== VIEWS ===================== */
+/* ===================== VIEWS v4 ===================== */
 function header(sub){
   const pend=DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]).length;
   return `<div class="brand"><h1><span class="mark">◆</span> Meridian</h1>
@@ -607,7 +646,7 @@ function header(sub){
     <div class="datebar">${sub||fmtDate()}</div>`;
 }
 function goalRing(){
-  const goal=40, mins=Math.min(goal*2,(DB.meta.minlog||{})[todayStr()]||0);
+  const goal=40, mins=Math.min(goal*2,activeMinToday());
   const pct=Math.min(1,mins/goal), r=30, C=2*Math.PI*r;
   return `<svg width="76" height="76" viewBox="0 0 76 76" role="img" aria-label="Daily goal">
     <circle cx="38" cy="38" r="${r}" fill="none" style="stroke:var(--accent-soft)" stroke-width="7"/>
@@ -617,6 +656,18 @@ function goalRing(){
     <text x="38" y="50" text-anchor="middle" font-size="10" style="fill:var(--ink3)">of ${goal} min</text></svg>`;
 }
 function pendingProposals(){return DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]);}
+function weekKey(){const d=new Date();const on=new Date(d.getFullYear(),0,1);return d.getFullYear()+"-w"+Math.ceil(((d-on)/DAY+on.getDay()+1)/7);}
+function coachPlan(){
+  if(DATA.plan&&DATA.plan.week===weekKey())return DATA.plan;
+  const cl=DB.meta.catlog||{};
+  const weak=Object.keys(cl).filter(c=>cl[c].n>=5).sort((a,b)=>(1-cl[a].a/cl[a].n)-(1-cl[b].a/cl[b].n)).slice(0,2);
+  const focus=[];
+  if(weak.length)focus.push("Shore up your weakest area: "+weak.map(c=>catOf(c).name).join(", ")+" — expect extra new cards there");
+  const g=(DB.goals||[]).filter(x=>!x.del).sort((a,b)=>(a.target||"").localeCompare(b.target||""))[0];
+  if(g)focus.push("Goal “"+g.title+"”"+(g.target?" — due "+g.target:"")+": complete the next lesson in its category");
+  focus.push("Keep the streak: hit the 40-min ring at least 5 of 7 days");
+  return {week:weekKey(),focus,rationale:"Fallback plan computed on-device from retention data — the weekly review generates a richer one."};
+}
 function vToday(){
   const due=dueUnits().length, fresh=Math.min(newUnits().length,newAllowance());
   const lesson=nextLessonItem();
@@ -624,17 +675,24 @@ function vToday(){
   const ch=DATA.challenges.length?DATA.challenges[doyIndex(DATA.challenges.length)]:null;
   const chDone=DB.done["challenge-"+todayStr()];
   const pend=pendingProposals().length;
+  const plan=coachPlan();
+  const goals=(DB.goals||[]).filter(g=>!g.del);
   return header()+`
   ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`:""}
   <div class="card lux" style="margin-top:14px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
-    ${due+fresh?`${due?due+" due":""}${due&&fresh?" · ":""}${fresh?fresh+" new":""} to recall`:"Reviews clear"}<br>
-    ${lesson?"1 lesson · "+artifact(lesson,"lesson").min+" min":"No lesson queued"}${chDone?"":" · 1 drill"}</div></div>
+    <span class="tmrbox" id="tmr">--:--</span><br>
+    <span style="font-size:12.5px;color:var(--ink3)">counts while the app is open · ${due+fresh?due+fresh+" to recall":"reviews clear"}${lesson?" · 1 lesson":""}</span></div></div>
     <div class="btnrow" style="margin-top:12px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">Continue session</button>
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log external</button></div>
   </div>
+  <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
+    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
+    <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
+    ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
+  </div>
   ${pend?`<div class="card tap" onclick="APP.go('inbox')"><div class="row"><div><div class="eyebrow">Inbox</div>
-    <h3>${pend} item${pend>1?"s":""} awaiting your lane decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
+    <h3>${pend} item${pend>1?"s":""} awaiting your decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
   ${(()=>{const fr=items().filter(isFresh).slice(0,4);return fr.length?`<div class="card"><div class="eyebrow">Updated overnight</div>
     ${fr.map(it=>`<div class="listitem" onclick="APP.item('${it.id}')" style="border:none;padding:8px 0"><h4>${esc(it.title)}<span class="dot"></span></h4></div>`).join("")}</div>`:"";})()}
   <div class="card tap" onclick="APP.go('review')">
@@ -646,35 +704,35 @@ function vToday(){
     <div class="eyebrow">Step 2 · Learn</div>
     <h3>${esc(lesson.title)}</h3>
     <div class="body">${esc(catOf(lesson.cats[0]).name)} · ${artifact(lesson,"lesson").min} min read</div>
-  </div>`:`<div class="card"><div class="eyebrow">Step 2 · Learn</div><h3>Curriculum complete</h3><div class="body">Capture something new, or ask Claude to hunt for material.</div></div>`}
+  </div>`:`<div class="card"><div class="eyebrow">Step 2 · Learn</div><h3>Nothing queued</h3><div class="body">Capture something, or graduate a Filter item to Master.</div></div>`}
   ${ch?`<div class="card">
     <div class="eyebrow">Step 3 · Apply</div>
     <div class="body" style="color:var(--ink);font-size:15px">${esc(ch.text)}</div>
-    <div class="btnrow">${chDone?`<span class="pill ok">Completed ✓</span>`:`<button class="btn small" onclick="APP.challengeDone()">Mark complete +20</button>`}
-    <button class="btn small ghost" onclick="APP.challengeNote()">Do it in a note</button></div>
+    <div class="btnrow">${chDone?`<span class="pill ok">Completed ✓</span>`:`<button class="btn small solid" onclick="APP.drill()">Answer the drill</button>
+    <button class="btn small ghost" onclick="APP.challengeDone()">Did it elsewhere +20</button>`}</div>
   </div>`:""}`;
 }
 
-/* ---------- Inbox ---------- */
-let INBOXFILES=null, CAPLANE="auto";
-const CAPLANES=[["auto","Let Claude decide"],["gist","Gist"],["understand","Understand"],["learn","Learn"],["retrieve","Retrieve"],["evaluate","Evaluate"]];
+/* ---------- Inbox (composer) ---------- */
+let INBOXFILES=null, CAPLANE="filter", CAPFILES=[];
+const CAPLANES=[["filter","Filter (default)"],["understand","Understand"],["master","Master"]];
 function vInbox(){
   const pend=pendingProposals();
   let html=header("Inbox")+`
   <div class="card lux">
-    <div class="eyebrow">Capture anything</div>
-    <textarea id="capB" placeholder="Paste a link, an idea, article text — or attach a file below" style="min-height:84px;margin-top:8px"></textarea>
-    <div class="eyebrow" style="margin-top:4px">How should it be processed?</div>
+    <div class="eyebrow">Compose a capture — nothing sends until you hit the button</div>
+    <textarea id="capB" placeholder="Your note, a link, article text — anything. Links get fetched during processing." style="min-height:84px;margin-top:8px">${esc(CAPNOTE||"")}</textarea>
+    ${CAPFILES.length?`<div class="filelist">${CAPFILES.map((f,i)=>`<span>${esc(f.name)}<b onclick="APP.removeFile(${i})">×</b></span>`).join("")}</div>`:""}
+    <button class="btn ghost small" style="margin-bottom:10px" onclick="document.getElementById('capF').click()">📎 Attach files or photos (multiple)</button>
+    <input type="file" id="capF" multiple accept="image/*,.pdf,.md,.txt,.csv,.docx,.pptx" style="display:none" onchange="APP.stageFiles(this)">
+    <div class="eyebrow">Processing depth</div>
     <div class="chips capchips" style="margin-bottom:8px">${CAPLANES.map(([id,name])=>`<button class="chip ${CAPLANE===id?"active":""}" onclick="APP.capLane('${id}')">${name}</button>`).join("")}</div>
-    <input type="text" id="capI" placeholder="Anything specific you want Claude to do with it? (optional)">
-    <div class="btnrow" style="margin-top:4px">
-      <button class="btn solid" style="flex:1" onclick="APP.saveCapture()">Send to inbox</button>
-      <button class="btn ghost" onclick="document.getElementById('capF').click()">📎 Attach</button>
-      <input type="file" id="capF" accept="image/*,.pdf,.md,.txt,.csv" style="display:none" onchange="APP.captureFile(this)">
-    </div>
+    <input type="text" id="capI" placeholder="How should Claude process this? (optional)" value="${esc(CAPINSTR||"")}">
+    <button class="btn solid" style="width:100%;margin-top:6px" onclick="APP.saveCapture()">Send to inbox${CAPFILES.length?" ("+CAPFILES.length+" files)":""}</button>
   </div>
   <div class="btnrow" style="margin:0 0 16px">
-    <button class="btn small" onclick="APP.processNow()">⚡ Process now</button>
+    <button class="btn small" onclick="APP.processNow('fast')">⚡ Fast process</button>
+    <button class="btn small" onclick="APP.processNow('full')">🔬 Full process</button>
     <button class="btn small ghost" onclick="APP.refreshInbox()">Refresh</button>
   </div>`;
   if(pend.length){
@@ -687,26 +745,31 @@ function vInbox(){
         <button class="btn small ghost" onclick="APP.pickLane('${it.id}')">Different lane</button>
         ${opts}
         <button class="btn small ghost" onclick="APP.item('${it.id}')">Open</button></div></div>`;}).join("");
-  }else{
-    html+=`<p class="dim" style="font-size:13.5px;margin-bottom:14px">No items awaiting a decision.</p>`;
   }
   if(INBOXFILES===null){html+=`<p class="dim" style="font-size:13px">Checking raw inbox…</p>`;APP.refreshInbox(true);}
   else if(INBOXFILES.length){
     html+=`<div class="eyebrow" style="margin-top:12px">Queued for processing (${INBOXFILES.length})</div>
     <div class="card"><div class="body">${INBOXFILES.map(esc).join("<br>")}</div>
-    <p class="dim" style="font-size:12.5px;margin-top:8px">Fast pass hourly via ⚡ (Mac must have Claude open) · full treatment nightly at 6am.</p></div>`;
+    <p class="dim" style="font-size:12.5px;margin-top:8px">Tap ⚡ or 🔬 above — runs within ~15 min while your Mac has Claude open.</p></div>`;
   }
   return html;
 }
 
-/* ---------- Newsletters ---------- */
+/* ---------- Newsletters + topics ---------- */
 function vNews(){
   const all=(DATA.news||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
   const acts=DB.newsActions||{};
   const live=all.filter(n=>!acts[n.id]||acts[n.id].a==="keep");
-  let html=header("Newsletters");
+  const topics=DATA.newsTopics||[];
+  const recs=(DATA.topicRecs||[]).filter(r=>!acts["rec-"+r.id]);
+  let html=header("Newsletters")+`
+  <div class="chips">${topics.map(tp=>`<span class="chip active" onclick="APP.topicInfo('${tp.id}')">${esc(tp.name)}</span>`).join("")}
+    <button class="chip" onclick="APP.addTopic()">＋ topic</button></div>
+  ${recs.length?`<div class="card"><div class="eyebrow">Recommended topics to follow</div>
+    <div class="chips" style="margin:8px 0 0">${recs.map(r=>`<button class="chip" onclick="APP.followRec('${r.id}')">★ ${esc(r.name)}</button>`).join("")}</div>
+    <p class="dim" style="font-size:12px;margin-top:8px">Tap to follow — sources get researched and added to your briefing.</p></div>`:""}`;
   if(!live.length)return html+`<div class="empty"><div class="glyph">☰</div><h3 style="margin-bottom:6px">Nothing new</h3>
-    <p style="font-size:14px">Weekday briefings from your sources land here by 7am.<br>Read cards are cleared each morning.</p></div>`;
+    <p style="font-size:14px">Weekday briefings land here by 7am. Read cards clear each morning.</p></div>`;
   let lastDate="";
   for(const n of live){
     if(n.date!==lastDate){lastDate=n.date;html+=`<div class="eyebrow" style="margin-top:14px">${esc(n.src||"Briefing")} · ${esc(n.date)}</div>`;}
@@ -720,12 +783,12 @@ function vNews(){
   return html;
 }
 
-/* ---------- Library ---------- */
-let libFilter=null, glossQuery="";
+/* ---------- Library (categories default) ---------- */
+let libTab="cats", libFilter=null, glossQuery="";
 function vLibrary(){
   const tabs=`<div class="subtabs">
-    <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button>
     <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Categories</button>
+    <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button>
     <button class="${libTab==="gloss"?"active":""}" onclick="APP.lib('gloss')">Glossary</button>
     <button class="${libTab==="desk"?"active":""}" onclick="APP.lib('desk')">Desk</button></div>`;
   if(libTab==="gloss")return header("Library")+tabs+vGloss();
@@ -742,6 +805,7 @@ function vLibrary(){
   if(libTab==="cats"&&!libFilter){
     return header("Library")+tabs+DATA.categories.map(c=>{
       const ls=all.filter(it=>(it.cats||[]).includes(c.id));
+      if(!ls.length)return "";
       const done=ls.filter(it=>DB.done[it.id]).length;
       return `<div class="card tap" onclick="APP.libFilter('${c.id}')"><div class="track">
         <div class="glyph">${c.glyph||"·"}</div>
@@ -759,32 +823,47 @@ function vLibrary(){
     ${DB.done[it.id]?'<span class="check">✓</span>':'<span class="dim">→</span>'}</div></div>`).join(""):
   `<div class="empty"><p>Nothing here yet.</p></div>`}`;
 }
+function glossReadCount(){return Object.keys(DB.glossRead||{}).length;}
 function vGloss(){
   const q=glossQuery.toLowerCase();
   const terms=DATA.glossary.filter(g=>!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q));
-  return `<input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}"
+  return `<div class="row" style="margin-bottom:8px"><span class="dim" style="font-size:13px">${glossReadCount()} of ${DATA.glossary.length} read · quiz every 5</span>
+  <button class="btn small ghost" onclick="APP.addTermReq()">＋ term</button></div>
+  <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}"
     oninput="APP.glossSearch(this.value)">
-  ${terms.slice(0,80).map(g=>`<div class="glossitem"><div class="row"><h4>${esc(g.term)}</h4>
-  <button class="btn small ghost" onclick="APP.glossToCard('${g.id}')">→ review</button></div>
-  <p>${esc(g.def)}</p><span class="gcat">${esc(g.cat)} · verified ${esc(g.verified||"")}</span></div>`).join("")}
+  ${terms.slice(0,80).map(g=>{
+    const read=(DB.glossRead||{})[g.id];
+    return `<div class="glossitem"><div class="row" style="cursor:pointer" onclick="APP.glossOpen('${g.id}')">
+    <h4>${read?"✓ ":""}${esc(g.term)}</h4><span class="dim" style="font-size:12px">${GLOSSOPEN[g.id]?"▾":"▸"}</span></div>
+    ${GLOSSOPEN[g.id]?`<p>${esc(g.def)}</p><div class="row"><span class="gcat">${esc(g.cat)} · verified ${esc(g.verified||"")}</span>
+    <button class="btn small ghost" onclick="APP.glossToCard('${g.id}')">→ review</button></div>`:""}</div>`;}).join("")}
   ${terms.length>80?`<p class="dim" style="margin-top:10px">Showing 80 of ${terms.length} — refine your search.</p>`:""}`;
 }
 
-/* ---------- Item detail ---------- */
+/* ---------- Item detail with stage navigation ---------- */
+let STAGEVIEW={};
 function vItem(){
   const it=item(VIEW.p);
   if(!it)return vLibrary();
-  const les=artifact(it,"lesson");
-  const cards=artifact(it,"cards")||[];
-  let html=`<div class="reader"><button class="back" onclick="history.length>1?history.back():APP.go('library')">← Back</button>
-  <div class="row" style="align-items:flex-start"><div>
-    <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
-    <h2>${esc(it.title)}</h2></div></div>
-  <div style="margin:6px 0 14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-    ${laneChip(it.lane)}
-    <button class="btn small ghost" onclick="APP.pickLane('${it.id}')">Change lane</button>
-    ${les?"":`<button class="btn small ghost" onclick="APP.editArtifact('${it.id}','summary')">Edit</button>`}
-  </div>`;
+  const viewLane=STAGEVIEW[it.id]||it.lane;
+  const curRank=laneRank(it.lane);
+  const stageBtns=LANES.map(([id,name])=>{
+    const r=laneRank(id);
+    if(id===it.lane)return `<button class="cur" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}</button>`;
+    if(r<curRank){
+      const has=(LANE_ARTS[id]||[]).some(k=>artifact(it,k));
+      return has?`<button class="avail" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}</button>`:`<button disabled style="opacity:.4">${name}</button>`;
+    }
+    return `<button onclick="APP.graduateTo('${it.id}','${id}')">↑ ${name}</button>`;
+  }).join("");
+  let html=`<div class="reader"><button class="back" onclick="APP.go('library')">← Library</button>
+  <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
+  <h2>${esc(it.title)}</h2>
+  <div class="stagenav">${stageBtns}</div>`;
+  if(viewLane!==it.lane)html+=`<div class="histbox" style="margin:0 0 12px">Viewing the earlier <strong>${esc(laneName(viewLane))}</strong> version — current stage is ${esc(laneName(it.lane))}.</div>`;
+  const showKeys=LANE_ARTS[viewLane]||[];
+  const les=showKeys.includes("lesson")?artifact(it,"lesson"):null;
+  const cards=showKeys.includes("cards")?(artifact(it,"cards")||[]):[];
   if(les){
     const dgs=les.dgs||(les.dg?[les.dg]:null);
     const hasMarkers=/\{\{DIAGRAM:\d+\}\}/.test(les.body||"");
@@ -799,7 +878,9 @@ function vItem(){
       `<button class="btn solid" onclick="APP.lessonDone('${it.id}')">Complete — unlock ${cards.length} cards · +15</button>`}
     <button class="btn small ghost" onclick="APP.editArtifact('${it.id}','lesson')">Edit lesson</button></div>`;
   }
-  for(const [key,label] of [["summary","Summary"],["facts","Fact card"],["note","Structured note"],["memo","Decision memo"]]){
+  const mdKeys=[["summary","Filter summary"],["facts","Fact card"],["note","Structured note"],["memo","Synthesis memo"]];
+  for(const [key,label] of mdKeys){
+    if(!showKeys.includes(key))continue;
     const a=artifact(it,key);
     if(a)html+=`<div class="artif"><h5>${label}${it.edits&&it.edits[key]?" · edited":""}</h5><div class="card"><div class="prose" style="font-size:14.5px">${md(typeof a==="string"?a:JSON.stringify(a))}</div>
     <button class="btn small ghost" style="margin-top:8px" onclick="APP.editArtifact('${it.id}','${key}')">Edit</button></div></div>`;
@@ -808,11 +889,10 @@ function vItem(){
     html+=`<div class="artif"><h5>Flashcards (${cards.length})</h5>`+cards.map((c,i)=>
       `<div class="listitem" onclick="APP.editCard('${it.id}',${i})"><h4>${esc(c.q)}</h4><p>${esc(c.a)}</p></div>`).join("")+`</div>`;
   }
-  const laneArtifacts={retrieve:"facts",gist:"summary",understand:"note",evaluate:"memo"};
-  const need=laneArtifacts[it.lane];
-  if(need&&!artifact(it,need))html+=`<div class="histbox">No ${laneName(it.lane)} artifacts yet — they'll be generated in the next processing run.</div>`;
+  const need=(LANE_ARTS[it.lane]||[])[0];
+  if(viewLane===it.lane&&need&&!artifact(it,need))html+=`<div class="histbox">No ${laneName(it.lane)} artifacts yet — run 🔬 Full process from the Inbox to generate them.</div>`;
   if((it.history||[]).length){
-    html+=`<div class="histbox"><strong>History:</strong><br>`+it.history.map(h=>`${esc(h.at||"")} — moved to ${esc(laneName(h.lane)||h.lane)}`).join("<br>")+`</div>`;
+    html+=`<div class="histbox"><strong>History:</strong><br>`+it.history.map(h=>`${esc(h.at||"")} — ${esc(laneName(LANE_LEGACY[h.lane]||h.lane)||h.lane)}`).join("<br>")+`</div>`;
   }
   if(it.note_path)html+=`<p style="margin-top:14px;font-size:13.5px"><a style="color:var(--accent)" href="https://github.com/${repo()}/blob/main/${esc(it.note_path)}" target="_blank">Open deep note in vault →</a></p>`;
   return html+`<div style="height:30px"></div></div>`;
@@ -870,10 +950,10 @@ function vReview(){
       inner+=`<div class="a">${esc(a.model||a.a)}</div>`;
       controls=gradeRow(u);
     }else{
-      controls=`<textarea id="typedIn" placeholder="${u.type==="drill"?"How would you handle it? Type or think out loud, then compare":"Type what you remember, then compare"}" style="min-height:100px">${esc(s.typed||"")}</textarea>
+      controls=`<textarea id="typedIn" placeholder="${u.type==="drill"?"How would you handle it? Then compare":"Type what you remember, then compare"}" style="min-height:100px">${esc(s.typed||"")}</textarea>
       <button class="btn solid" style="width:100%" onclick="APP.checkTyped()">Compare with model answer</button>`;
     }
-  }else{ /* card */
+  }else{
     const mode=reviewMode();
     inner+=`<div class="q">${esc(u.a.q)}</div>`;
     if(s.shown){
@@ -907,7 +987,7 @@ function gradeRow(u){
     <button class="g-easy" onclick="APP.grade(3)">Easy<span>${ivPreview(u.id,3)}</span></button></div>`;
 }
 
-/* ---------- Desk (inside Library) ---------- */
+/* ---------- Desk ---------- */
 let deskTab="notes";
 function vDesk(){
   const tabs=`<div class="chips">
@@ -951,45 +1031,61 @@ function vProject(){
   <button class="btn small danger" onclick="APP.delProject('${p.id}')">Delete</button></div>`;
 }
 
-/* ---------- Stats ---------- */
+/* ---------- Stats (rich) ---------- */
 function vProgress(){
   const units=unlockedUnits();const seen=units.filter(u=>DB.srs[u.id]).length;
   const mastered=units.filter(u=>DB.srs[u.id]&&(DB.srs[u.id].s||0)>=21).length;
   const doneLessons=Object.keys(DB.done).filter(k=>k.indexOf("challenge")<0).length;
-  const days=[...Array(7)].map((_,i)=>{const d=new Date(Date.now()-(6-i)*DAY);return{k:todayStr(d),l:"SMTWTFS"[d.getDay()]};});
-  const mx=Math.max(1,...days.map(d=>DB.meta.revlog[d.k]||0));
   let gN=0,gA=0;const gl=DB.meta.gradelog||{};
   for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));if(gl[k]){gN+=gl[k].n;gA+=gl[k].a;}}
   const retention=gN?Math.round((1-gA/gN)*100):null;
+  /* heatmap: last 78 days */
+  const cells=[...Array(78)].map((_,i)=>{
+    const d=new Date(Date.now()-(77-i)*DAY);const k=todayStr(d);
+    const v=(DB.meta.revlog[k]||0)+((DB.meta.minlog||{})[k]||0);
+    return v===0?0:v<8?1:v<25?2:3;});
+  const heat=`<div class="heat">${cells.map(c=>`<i class="${c?"h"+c:""}"></i>`).join("")}</div>`;
+  /* lane donut */
+  const all=items();
+  const counts=LANES.map(([id])=>all.filter(it=>it.lane===id).length);
+  const total=Math.max(1,counts.reduce((a,b)=>a+b,0));
+  const cols=["var(--amber)","#378ADD","var(--green)"];
+  let acc=0,segs="";
+  const R=34,C=2*Math.PI*R;
+  counts.forEach((n,i)=>{const frac=n/total;
+    segs+=`<circle cx="45" cy="45" r="${R}" fill="none" stroke="${cols[i]}" stroke-width="12"
+      stroke-dasharray="${(frac*C).toFixed(1)} ${C.toFixed(1)}" stroke-dashoffset="${(-acc*C).toFixed(1)}" transform="rotate(-90 45 45)"/>`;
+    acc+=frac;});
+  const donut=`<div class="donutrow"><svg width="90" height="90" viewBox="0 0 90 90">${segs}
+    <text x="45" y="49" text-anchor="middle" font-size="15" font-weight="650" style="fill:var(--ink)">${total}</text></svg>
+    <div class="legend">${LANES.map(([id,name],i)=>`<div><b style="background:${cols[i]}"></b>${name}: ${counts[i]}</div>`).join("")}</div></div>`;
   const fc=[...Array(7)].map((_,i)=>{
     const start=Date.now()+i*DAY, end=start+DAY;let n=0;
     for(const k in DB.srs){const e=DB.srs[k];if(e&&!e.susp&&e.due>=(i===0?0:start)&&e.due<end)n++;}
     return n;});
   const fmx=Math.max(1,...fc);
   const cl=DB.meta.catlog||{};
-  const catRows=Object.keys(cl).filter(c=>cl[c].n>=5).map(c=>({c,r:Math.round((1-cl[c].a/cl[c].n)*100),n:cl[c].n}))
-    .sort((a,b)=>a.r-b.r);
+  const catRows=Object.keys(cl).filter(c=>cl[c].n>=5).map(c=>({c,r:Math.round((1-cl[c].a/cl[c].n)*100),n:cl[c].n})).sort((a,b)=>a.r-b.r);
+  const catCol=r=>r>=85?"var(--green)":r>=70?"var(--amber)":"var(--red)";
   return header("Stats")+`
   <div class="stats">
-    <div class="stat hi"><div class="n">${DB.meta.streak||0}</div><div class="l">Streak</div></div>
-    <div class="stat"><div class="n">${retention==null?"—":retention+"%"}</div><div class="l">Retention 30d</div></div>
-    <div class="stat"><div class="n">${seen}</div><div class="l">Seen</div></div>
-    <div class="stat"><div class="n">${mastered}</div><div class="l">Mastered</div></div>
+    <div class="stat hi"><div class="n">🔥 ${DB.meta.streak||0}</div><div class="l">Streak</div></div>
+    <div class="stat"><div class="n" style="color:${retention==null?"var(--ink)":catCol(retention)}">${retention==null?"—":retention+"%"}</div><div class="l">Retention 30d</div></div>
+    <div class="stat"><div class="n">${DB.meta.xp||0}</div><div class="l">XP</div></div>
+    <div class="stat"><div class="n" style="color:var(--green)">${mastered}</div><div class="l">Mastered</div></div>
   </div>
+  <div class="card"><div class="eyebrow">Last 78 days — reviews + minutes</div>${heat}
+    <p class="dim" style="font-size:11.5px;margin-top:6px">darker = more activity · lessons done: ${doneLessons} · cards seen: ${seen}</p></div>
+  <div class="card"><div class="eyebrow">Items by lane</div>${donut}</div>
   ${catRows.length?`<div class="card"><div class="eyebrow">Retention by category — weakest first</div>
-    ${catRows.map(r=>`<div style="margin-top:12px"><div class="row" style="font-size:13.5px"><span>${esc(catOf(r.c).name)}</span><span class="dim">${r.r}% · ${r.n} reviews</span></div>
-    <div class="bar ${r.r>=85?"g":""}"><i style="width:${r.r}%"></i></div></div>`).join("")}
-    <p class="dim" style="font-size:12px;margin-top:10px">The nightly pipeline biases new material toward your weakest categories.</p></div>`:""}
-  <div class="card"><div class="eyebrow">Reviews · last 7 days</div>
-    <div class="week">${days.map(d=>{const v=DB.meta.revlog[d.k]||0;
-      return `<div class="col"><div class="colbar" style="height:${Math.round(v/mx*46)+2}px"></div><div class="coll">${d.l}</div></div>`;}).join("")}</div></div>
+    ${catRows.map(r=>`<div style="margin-top:12px"><div class="row" style="font-size:13.5px"><span>${esc(catOf(r.c).name)}</span><span style="font-weight:600;color:${catCol(r.r)}">${r.r}%</span></div>
+    <div class="bar"><i style="width:${r.r}%;background:${catCol(r.r)}"></i></div></div>`).join("")}
+    <p class="dim" style="font-size:12px;margin-top:10px">Weakest areas get priority in new material and the weekly plan.</p></div>`:""}
   <div class="card"><div class="eyebrow">Due forecast · next 7 days</div>
     <div class="week">${fc.map((v,i)=>{const d=new Date(Date.now()+i*DAY);
-      return `<div class="col"><div class="colbar" style="height:${Math.round(v/fmx*46)+2}px;background:var(--green)"></div><div class="coll">${i===0?"now":"SMTWTFS"[d.getDay()]}</div></div>`;}).join("")}</div>
-    <p class="dim" style="font-size:12px;margin-top:8px">FSRS at 90% target retention. Lessons done: ${doneLessons}.</p></div>`;
+      return `<div class="col"><div class="colbar" style="height:${Math.round(v/fmx*46)+2}px;background:var(--green)"></div><div class="coll">${i===0?"now":"SMTWTFS"[d.getDay()]}</div></div>`;}).join("")}</div></div>`;
 }
 
-/* ---------- Setup ---------- */
 function vSetup(){
   return `<div class="setup-logo"><div class="ring">◆</div><h1>MERIDIAN</h1><p>Learning System</p></div>
   <div class="card lux"><h3 style="margin-bottom:10px">Connect your private repo</h3>
@@ -1003,7 +1099,8 @@ function vSetup(){
 </script>
 <script>
 "use strict";
-/* ===================== ACTIONS ===================== */
+/* ===================== ACTIONS v4 ===================== */
+let CAPNOTE="",CAPINSTR="",GLOSSOPEN={},QZ=null;
 function setItemState(id,patch){
   const st=DB.itemState[id]||{};
   DB.itemState[id]=Object.assign(st,patch,{u:Date.now()});
@@ -1016,78 +1113,151 @@ const APP={
   libFilter(id){libFilter=id;nav("library");},
   desk(t){deskTab=t;nav("library");},
   item(id){nav("item",id);},
+  stageView(id,lane){STAGEVIEW[id]=lane;render();},
+  graduateTo(id,lane){
+    const it=item(id);if(!it)return;
+    openSheet(`<h3>Graduate to ${esc(laneName(lane))}?</h3>
+    <p class="muted" style="font-size:14px;margin-bottom:12px">${lane==="understand"?"Claude will build a structured note — the mental model in plain language, with open questions.":"Claude will build the full mastery kit — lesson, flashcards, quiz, and application prompts — and it enters your review rotation."}
+    The ${esc(laneName(it.lane))} version stays available on the item.</p>
+    <div class="btnrow"><button class="btn solid" onclick="APP.confirmGraduate('${id}','${lane}')">Graduate</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  confirmGraduate(id,lane){
+    const it=item(id);
+    const st=DB.itemState[id]||{};
+    const hist=(st.history||[]).concat([{lane:it.lane,at:todayStr()}]);
+    setItemState(id,{lane,history:hist});
+    delete STAGEVIEW[id];
+    closeSheet();toast("Graduated — run 🔬 Full process to generate "+laneName(lane)+" artifacts");render();},
   glossSearch(v){glossQuery=v;
     const box=document.querySelector(".srch");
-    const app=$("#app");const pos=box?box.selectionStart:0;
-    app.innerHTML=vLibrary();
+    const pos=box?box.selectionStart:0;
+    $("#app").innerHTML=vLibrary();
     const nb=document.querySelector(".srch");if(nb){nb.focus();nb.setSelectionRange(pos,pos);}},
+  glossOpen(id){
+    GLOSSOPEN[id]=!GLOSSOPEN[id];
+    if(GLOSSOPEN[id]&&!(DB.glossRead||{})[id]){
+      DB.glossRead[id]=Date.now();saveLocal();
+      const n=Object.keys(DB.glossRead).length;
+      if(n%5===0){render();return APP.glossQuiz();}
+    }
+    render();},
+  glossQuiz(){
+    const readIds=Object.entries(DB.glossRead||{}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
+    const terms=readIds.map(id=>DATA.glossary.find(g=>g.id===id)).filter(Boolean);
+    if(terms.length<3)return;
+    const others=DATA.glossary.filter(g=>!readIds.includes(g.id));
+    const qs=terms.map((g,i)=>{
+      const kind=i%3;
+      if(kind===0){ /* MCQ: def -> term */
+        const wrong=others.slice().sort(()=>Math.random()-.5).slice(0,3).map(o=>o.term);
+        const choices=[g.term,...wrong].sort(()=>Math.random()-.5);
+        return {kind:"mcq",q:"Which term matches: “"+g.def.slice(0,140)+(g.def.length>140?"…":"")+"”",choices,correct:choices.indexOf(g.term),term:g.term};
+      }
+      if(kind===1){ /* T/F */
+        const flip=Math.random()<.5;
+        const shown=flip?(others[Math.floor(Math.random()*others.length)]||g):g;
+        return {kind:"tf",q:"True or false — “"+g.term+"”: "+shown.def.slice(0,140)+(shown.def.length>140?"…":""),answer:shown===g,term:g.term};
+      }
+      /* fill in the blank */
+      const words=g.term.split(" ");
+      const blankTerm=words.length>1?words.map((w,j)=>j===0?w:"____").join(" "):"____";
+      return {kind:"fill",q:"Fill the blank: "+blankTerm+" — "+g.def.slice(0,140),answer:g.term,term:g.term};
+    });
+    QZ={qs,i:0,score:0,done:false};
+    APP.renderQuiz();},
+  renderQuiz(ans){
+    const z=QZ;if(!z)return;
+    const qq=z.qs[z.i];
+    let body="";
+    if(z.done){
+      body=`<h3>Glossary check: ${z.score}/${z.qs.length}</h3>
+      <p class="muted" style="font-size:14px;margin:10px 0">${z.score===z.qs.length?"Clean sweep — these are sticking.":"Misses are normal — the terms stay in the glossary; add tough ones to review."}</p>
+      <div class="btnrow"><button class="btn solid" onclick="APP.closeQuiz()">Done</button></div>`;
+    }else{
+      body=`<h3>Quick check ${z.i+1}/${z.qs.length}</h3>
+      <p style="font-size:15px;margin:12px 0">${esc(qq.q)}</p>`;
+      if(ans!==undefined){
+        const good=qq.kind==="mcq"?ans===qq.correct:qq.kind==="tf"?ans===qq.answer:String(ans).trim().toLowerCase()===qq.answer.toLowerCase();
+        if(good)z.score++;
+        body+=`<p style="font-weight:600;color:${good?"var(--green)":"var(--red)"}">${good?"Correct ✓":"Not quite — it's “"+esc(qq.term)+"”"}</p>
+        <div class="btnrow"><button class="btn solid" onclick="APP.quizNext()">Next</button></div>`;
+      }else if(qq.kind==="mcq"){
+        body+=qq.choices.map((c,i)=>`<button class="quizopt" onclick="APP.quizAns(${i})">${esc(c)}</button>`).join("");
+      }else if(qq.kind==="tf"){
+        body+=`<div class="btnrow"><button class="btn" style="flex:1" onclick="APP.quizAns(true)">True</button>
+        <button class="btn" style="flex:1" onclick="APP.quizAns(false)">False</button></div>`;
+      }else{
+        body+=`<input type="text" id="qzIn" placeholder="Type the term"><div class="btnrow"><button class="btn solid" onclick="APP.quizAns(document.getElementById('qzIn').value)">Check</button></div>`;
+      }
+    }
+    openSheet(body);},
+  quizAns(a){APP.renderQuiz(a);},
+  quizNext(){QZ.i++;if(QZ.i>=QZ.qs.length)QZ.done=true;APP.renderQuiz();},
+  closeQuiz(){QZ=null;closeSheet();},
   glossToCard(gid){
     const g=DATA.glossary.find(x=>x.id===gid);if(!g)return;
     if((DB.custom||[]).some(c=>!c.del&&c.src==="Glossary"&&c.q==="Define: "+g.term))return toast("Already in rotation");
     DB.custom.push({id:"c"+Date.now(),q:"Define: "+g.term,a:g.def,u:Date.now(),src:"Glossary",track:"gloss"});
     saveLocal();toast("Added to review rotation");},
+  addTermReq(){
+    openSheet(`<h3>Add glossary term</h3>
+    <label class="f">Term</label><input type="text" id="gt">
+    <label class="f">Definition (optional — Claude researches and dedupes if blank)</label><textarea id="gd" style="min-height:70px"></textarea>
+    <div class="btnrow"><button class="btn solid" onclick="APP.sendTermReq()">Request</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  async sendTermReq(){
+    const term=$("#gt").value.trim(),def=$("#gd").value.trim();
+    if(!term)return toast("Enter a term");
+    try{
+      await captureToInbox("glossary-request-"+Date.now()+".md","---\ntype: glossary-add\nterm: "+term+"\n---\n\n"+def);
+      closeSheet();toast("Requested — added after dedupe check");
+    }catch(e){toast("Couldn't reach GitHub");}},
   refreshInbox(silent){
     listInboxFiles().then(f=>{INBOXFILES=f;if(VIEW.name==="inbox")render();});
     if(!silent)toast("Refreshing…");},
-  capLane(id){CAPLANE=id;render();},
+  capLane(id){APP.snapshotCap();CAPLANE=id;render();},
+  snapshotCap(){const b=$("#capB"),i=$("#capI");if(b)CAPNOTE=b.value;if(i)CAPINSTR=i.value;},
+  stageFiles(inp){
+    APP.snapshotCap();
+    const files=[...inp.files];
+    let pending=files.length;
+    files.forEach(f=>{
+      if(f.size>3*1024*1024){pending--;toast(f.name+" skipped — max 3 MB");return;}
+      const r=new FileReader();
+      r.onload=()=>{CAPFILES.push({name:f.name.replace(/[^a-zA-Z0-9._-]/g,"_"),b64:r.result.split(",")[1]});
+        if(--pending<=0)render();};
+      r.readAsDataURL(f);});
+    if(!files.length)render();},
+  removeFile(i){APP.snapshotCap();CAPFILES.splice(i,1);render();},
   async saveCapture(){
-    const b=$("#capB").value.trim(), instr=$("#capI").value.trim();
-    if(!b)return toast("Nothing to capture");
-    const name="capture-"+new Date().toISOString().replace(/[:T]/g,"-").slice(0,16)+".md";
-    const content=`---\ncaptured: ${new Date().toISOString()}\nvia: meridian-app\nrequested_lane: ${CAPLANE}\ninstruction: ${instr||"(none)"}\n---\n\n${b}\n`;
-    try{await captureToInbox(name,content);INBOXFILES=null;CAPLANE="auto";toast("Captured ✓");render();}
-    catch(e){toast("Couldn't reach GitHub — try again");}
-  },
-  captureFile(inp){
-    const f=inp.files[0];if(!f)return;
-    if(f.size>3*1024*1024)return toast("Max 3 MB per file");
-    const r=new FileReader();
-    r.onload=async()=>{
-      const b64=r.result.split(",")[1];
-      const safe=f.name.replace(/[^a-zA-Z0-9._-]/g,"_");
-      const name="capture-"+new Date().toISOString().replace(/[:T]/g,"-").slice(0,16)+"-"+safe;
-      try{
-        await gh(`/repos/${repo()}/contents/_inbox/${name}`,{method:"PUT",body:JSON.stringify({message:"capture from app",content:b64})});
-        INBOXFILES=null;toast("Uploaded ✓");render();
-      }catch(e){toast("Upload failed — try again");}
-    };
-    r.readAsDataURL(f);
-  },
-  async processNow(){
+    APP.snapshotCap();
+    if(!CAPNOTE.trim()&&!CAPFILES.length)return toast("Nothing to capture");
+    const ts=new Date().toISOString().replace(/[:T]/g,"-").slice(0,16);
+    const dir="capture-"+ts;
     try{
-      await captureToInbox(".process-request","requested: "+new Date().toISOString()+"\n");
-      toast("Requested — runs within the hour if your Mac has Claude open");
-    }catch(e){toast("Couldn't reach GitHub");}
-  },
-  newsRead(id){DB.newsActions[id]={a:"read",at:Date.now()};saveLocal();render();},
-  newsLib(id){DB.newsActions[id]={a:"lib",at:Date.now()};saveLocal();toast("Will be added to your Gist lane tonight");render();},
-  suggest(id,i){
-    const it=DATA.items.find(x=>x.id===id);const s=it&&(it.suggestions||[])[i];if(!s)return;
-    DB.inboxDecisions[id]={lane:it.lane,suggestion:s.label,at:todayStr()};
-    setItemState(id,{});
-    toast("Noted — Claude will do this in the next run");render();},
-  logExternal(){
-    openSheet(`<h3>Log external learning</h3>
-    <p class="muted" style="font-size:13.5px;margin-bottom:10px">NotebookLM audio, a course, practice drills — anything done outside the app. Counts toward today's ring.</p>
-    <label class="f">Minutes</label><input type="text" id="exM" inputmode="numeric" placeholder="e.g. 25">
-    <label class="f">What was it?</label><input type="text" id="exW" placeholder="e.g. NotebookLM audio — ML ranking topic">
-    <div class="btnrow"><button class="btn solid" onclick="APP.saveExternal()">Log it</button>
-    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
-  saveExternal(){
-    const m=parseInt($("#exM").value,10),w=$("#exW").value.trim();
-    if(!m||m<1)return toast("Enter minutes");
-    logMin(Math.min(m,240));bumpStreak();
-    DB.notes.push({id:"n"+Date.now(),title:"External learning — "+todayStr(),body:(w||"logged")+" ("+m+" min)",u:Date.now()});
-    saveLocal();closeSheet();toast("+"+m+" min logged");render();},
+      const note=`---\ncaptured: ${new Date().toISOString()}\nvia: meridian-app\nrequested_lane: ${CAPLANE}\ninstruction: ${CAPINSTR||"(none)"}\nfiles: ${CAPFILES.map(f=>f.name).join(", ")||"(none)"}\n---\n\n${CAPNOTE}\n`;
+      await captureToInbox(dir+"/note.md",note);
+      for(const f of CAPFILES){
+        await gh(`/repos/${repo()}/contents/_inbox/${dir}/${f.name}`,{method:"PUT",body:JSON.stringify({message:"capture attachment",content:f.b64})});
+      }
+      CAPNOTE="";CAPINSTR="";CAPFILES=[];CAPLANE="filter";INBOXFILES=null;
+      toast("Captured ✓ — tap ⚡ or 🔬 when ready");render();
+    }catch(e){toast("Upload failed — try again");}},
+  async processNow(mode){
+    try{
+      await captureToInbox(".process-request","mode: "+mode+"\nrequested: "+new Date().toISOString()+"\n");
+      toast((mode==="fast"?"⚡ Fast":"🔬 Full")+" processing requested — runs within ~15 min while your Mac has Claude open");
+    }catch(e){toast("Couldn't reach GitHub");}},
   acceptLane(id){
     const it=DATA.items.find(x=>x.id===id);if(!it)return;
-    DB.inboxDecisions[id]={lane:it.lane,at:todayStr()};
-    setItemState(id,{lane:it.lane});
-    toast("Filed to "+laneName(it.lane));render();},
+    const lane=LANE_LEGACY[it.lane]||"filter";
+    DB.inboxDecisions[id]={lane,at:todayStr()};
+    setItemState(id,{lane});
+    toast("Filed to "+laneName(lane));render();},
   pickLane(id){
     const it=item(id);if(!it)return;
     openSheet(`<h3>Choose lane</h3>
-    <p class="muted" style="font-size:13.5px;margin-bottom:12px">How deeply should this be processed? Prior artifacts are kept as history.</p>
+    <p class="muted" style="font-size:13.5px;margin-bottom:12px">Minimum sufficient depth — you can graduate it later. Prior artifacts always survive.</p>
     ${LANES.map(([lid,name,desc])=>`<button class="choice ${it.lane===lid?"correct":""}" onclick="APP.setLane('${id}','${lid}')">
       <strong>${esc(name)}</strong> — <span style="color:var(--ink2)">${esc(desc)}</span></button>`).join("")}`);},
   setLane(id,lane){
@@ -1096,7 +1266,83 @@ const APP={
     const hist=(st.history||[]).concat([{lane:it.lane,at:todayStr()}]);
     DB.inboxDecisions[id]={lane,at:todayStr()};
     setItemState(id,{lane,history:hist});
-    closeSheet();toast("Moved to "+laneName(lane)+" — new artifacts generate tonight");render();},
+    closeSheet();toast("Moved to "+laneName(lane));render();},
+  suggest(id,i){
+    const it=DATA.items.find(x=>x.id===id);const s=it&&(it.suggestions||[])[i];if(!s)return;
+    DB.inboxDecisions[id]={lane:LANE_LEGACY[it.lane]||"filter",suggestion:s.label,at:todayStr()};
+    setItemState(id,{});
+    toast("Noted — Claude will do this in the next run");render();},
+  newsRead(id){DB.newsActions[id]={a:"read",at:Date.now()};saveLocal();render();},
+  newsLib(id){DB.newsActions[id]={a:"lib",at:Date.now()};saveLocal();toast("Will join the Filter lane on the next processing run");render();},
+  topicInfo(id){
+    const tp=(DATA.newsTopics||[]).find(x=>x.id===id);if(!tp)return;
+    openSheet(`<h3>${esc(tp.name)}</h3>
+    <div class="eyebrow" style="margin:8px 0">Sources in your briefing</div>
+    ${(tp.sources||[]).map(s=>`<div class="listitem"><h4>${esc(s.name)}</h4><p>${esc(s.note||s.url||"")}</p></div>`).join("")||"<p class='dim'>Sources being researched…</p>"}
+    <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
+  addTopic(){
+    openSheet(`<h3>Follow a new topic</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:10px">Claude researches the best sources and proposes them before anything joins your briefing.</p>
+    <label class="f">Topic</label><input type="text" id="tpN" placeholder="e.g. ML infrastructure, fintech regulation">
+    <div class="btnrow"><button class="btn solid" onclick="APP.sendTopicReq()">Request sources</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  async sendTopicReq(){
+    const n=$("#tpN").value.trim();if(!n)return toast("Name the topic");
+    try{await captureToInbox("topic-request-"+Date.now()+".md","---\ntype: news-topic\ntopic: "+n+"\n---\n");
+      closeSheet();toast("Requested — sources proposed in your next briefing");}
+    catch(e){toast("Couldn't reach GitHub");}},
+  async followRec(id){
+    const r=(DATA.topicRecs||[]).find(x=>x.id===id);if(!r)return;
+    DB.newsActions["rec-"+id]={a:"followed",at:Date.now()};saveLocal();
+    try{await captureToInbox("topic-request-"+Date.now()+".md","---\ntype: news-topic\ntopic: "+r.name+"\n---\n");}catch(e){}
+    toast("Following "+r.name);render();},
+  drill(){
+    const ch=DATA.challenges[doyIndex(DATA.challenges.length)];if(!ch)return;
+    openSheet(`<h3>Apply drill</h3>
+    <div class="card" style="margin:10px 0"><div class="body" style="color:var(--ink)">${esc(ch.text)}</div></div>
+    <label class="f">Your response — this is what gets assessed</label>
+    <textarea id="drB" placeholder="Write your answer here. It's saved to Desk → Notes and scored in your weekly review." style="min-height:140px"></textarea>
+    <div class="btnrow"><button class="btn solid" onclick="APP.saveDrill()">Submit +20</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  saveDrill(){
+    const r=$("#drB").value.trim();
+    if(!r)return toast("Write your response first");
+    const ch=DATA.challenges[doyIndex(DATA.challenges.length)];
+    DB.notes.push({id:"n"+Date.now(),title:"Drill — "+todayStr(),body:"PROMPT: "+(ch?ch.text:"")+"\n\n---\n\nMY RESPONSE:\n"+r,u:Date.now()});
+    DB.done["challenge-"+todayStr()]=Date.now();DB.meta.xp+=20;bumpStreak();saveLocal();
+    closeSheet();toast("+20 XP — assessed in your weekly review");render();},
+  challengeDone(){DB.done["challenge-"+todayStr()]=Date.now();DB.meta.xp+=20;bumpStreak();saveLocal();toast("+20 XP");render();},
+  goalSheet(){
+    const gs=(DB.goals||[]).filter(g=>!g.del);
+    openSheet(`<h3>Learning goals</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:10px">The weekly coach plans backward from these.</p>
+    ${gs.map(g=>`<div class="listitem"><div class="row"><h4>${esc(g.title)}</h4>
+      <button class="btn small danger" onclick="APP.delGoal('${g.id}')">✕</button></div>
+      <p>${esc(g.target||"no date")} · ${esc((g.cats||[]).map(c=>catOf(c).name).join(", ")||"any category")}</p></div>`).join("")||"<p class='dim' style='font-size:13px'>No goals yet.</p>"}
+    <label class="f">New goal</label><input type="text" id="glT" placeholder="e.g. Deep on ML ranking systems">
+    <label class="f">Target date (optional)</label><input type="text" id="glD" placeholder="YYYY-MM-DD">
+    <label class="f">Category (optional)</label><select id="glC"><option value="">any</option>${DATA.categories.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join("")}</select>
+    <div class="btnrow"><button class="btn solid" onclick="APP.saveGoal()">Add goal</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
+  saveGoal(){
+    const ti=$("#glT").value.trim();if(!ti)return toast("Name the goal");
+    const c=$("#glC").value;
+    DB.goals.push({id:"g"+Date.now(),title:ti,target:$("#glD").value.trim(),cats:c?[c]:[],u:Date.now()});
+    saveLocal();APP.goalSheet();toast("Goal added");},
+  delGoal(id){const g=DB.goals.find(x=>x.id===id);if(g){g.del=true;g.u=Date.now();saveLocal();}APP.goalSheet();},
+  quotes(){
+    const qs=DATA.quotes;
+    openSheet(`<h3>Quotes &amp; maxims (${qs.length})</h3>
+    ${qs.slice(0,400).map(q=>`<div class="quote" style="margin-bottom:12px"><div class="qt" style="font-size:14px">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`).join("")}`);},
+  reveal(){SESSION.shown=true;render();},
+  checkTyped(){const el=$("#typedIn");SESSION.typed=el?el.value.trim():"";SESSION.shown=true;render();},
+  pick(i){SESSION.picked=i;SESSION.shown=true;render();},
+  setMode(m){localStorage.setItem("meridian.mode",m);render();},
+  grade(g){
+    const u=SESSION.q[SESSION.i];grade(resolveUnit(u),g);SESSION.doneCount++;
+    SESSION.missed=(g===0)?resolveUnit(u):null;
+    if(g===0)SESSION.q.push(u);
+    SESSION.i++;SESSION.shown=false;SESSION.typed="";SESSION.picked=null;render();},
   editArtifact(id,key){
     const it=item(id);if(!it)return;
     const cur=artifact(it,key);
@@ -1136,26 +1382,10 @@ const APP={
     setItemState(id,{edits:st.edits});
     closeSheet();toast("Card updated");render();},
   lessonDone(id){
-    const it=item(id);const les=artifact(it,"lesson");
-    DB.done[id]=Date.now();DB.meta.xp+=15;if(les)logMin(les.min);bumpStreak();saveLocal();
+    const it=item(id);
+    DB.done[id]=Date.now();DB.meta.xp+=15;bumpStreak();saveLocal();
     toast("+15 XP — cards unlocked");
     if(FLOW)nav("today");else render();},
-  challengeDone(){DB.done["challenge-"+todayStr()]=Date.now();DB.meta.xp+=20;logMin(5);bumpStreak();saveLocal();toast("+20 XP");render();},
-  challengeNote(){const ch=DATA.challenges[doyIndex(DATA.challenges.length)];
-    APP.editNote(null,"Challenge — "+todayStr(),(ch?ch.text:"")+"\n\n");},
-  quotes(){
-    const qs=DATA.quotes;
-    openSheet(`<h3>Quotes &amp; maxims (${qs.length})</h3>
-    ${qs.slice(0,400).map(q=>`<div class="quote" style="margin-bottom:12px"><div class="qt" style="font-size:14px">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`).join("")}`);},
-  reveal(){SESSION.shown=true;render();},
-  checkTyped(){const el=$("#typedIn");SESSION.typed=el?el.value.trim():"";SESSION.shown=true;render();},
-  pick(i){SESSION.picked=i;SESSION.shown=true;render();},
-  setMode(m){localStorage.setItem("meridian.mode",m);render();},
-  grade(g){
-    const u=SESSION.q[SESSION.i];grade(u,g);SESSION.doneCount++;
-    SESSION.missed=(g===0)?u:null;
-    if(g===0)SESSION.q.push(u);
-    SESSION.i++;SESSION.shown=false;SESSION.typed="";SESSION.picked=null;render();},
   note(id){nav("note",id);},
   project(id){nav("project",id);},
   editNote(id,title,body){
@@ -1230,18 +1460,21 @@ const APP={
     if(DATA.guide){openSheet(`<h3>How this system works</h3><div class="prose" style="font-size:14px">${md(DATA.guide)}</div>
       <p class="dim" style="font-size:12px;margin-top:10px">This guide auto-updates whenever the workflow changes (last: ${esc((DATA.guideUpdated||"").slice(0,10))}).</p>
       <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);return;}
-    openSheet(`<h3>How this system works</h3>
-    <div style="font-size:14px;line-height:1.65;color:var(--ink2)">
-    <p><strong style="color:var(--ink)">The system has four layers:</strong> capture → synthesis → learn → apply. You capture anything (here via <em>Inbox → Capture</em>, or by dropping files in the vault's <code>_inbox/</code>). Claude processes it overnight into one of five lanes. You learn daily in this app. You apply weekly via challenges.</p>
-    <p><strong style="color:var(--ink)">The five lanes</strong> set processing depth — the minimum sufficient one:</p>
-    <p>${LANES.map(([id,n,d])=>`${laneChip(id)} ${esc(d)}`).join("<br>")}</p>
-    <p>Items can move lanes anytime (open item → Change lane). Prior artifacts are kept as history. Your edits always survive regeneration.</p>
-    <p><strong style="color:var(--ink)">Daily ritual (~40 min):</strong> open the app, tap Continue session. Review (FSRS-scheduled recall: cards, quizzes, prompts, drills) → one lesson → one application drill. The streak and ring keep you honest.</p>
-    <p><strong style="color:var(--ink)">What to say to Claude:</strong> "process my inbox" · "make lessons from X" · "hunt the latest on Y" · "pull meetings into my projects" · "prep a NotebookLM pack for topic" · "weekly review" · "add X to my glossary".</p>
-    <p><strong style="color:var(--ink)">Feedback loop:</strong> when something isn't working, tell Claude what you observed (e.g. "reviews feel too easy", "gist items pile up") — the ops guides get updated so the system evolves with you.</p>
-    <p class="dim" style="font-size:12px">Storage: everything lives in your private GitHub repo (${esc(repo())}). This public app holds no personal data. FSRS-4.5 at 90% target retention.</p>
-    </div>
+    openSheet(`<h3>How this system works</h3><p class="muted">Guide not loaded yet — sync first.</p>
     <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
+  logExternal(){
+    openSheet(`<h3>Log external learning</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:10px">NotebookLM audio, a course, practice drills — anything done outside the app. Counts toward today's ring.</p>
+    <label class="f">Minutes</label><input type="text" id="exM" inputmode="numeric" placeholder="e.g. 25">
+    <label class="f">What was it?</label><input type="text" id="exW" placeholder="e.g. NotebookLM audio — ML ranking topic">
+    <div class="btnrow"><button class="btn solid" onclick="APP.saveExternal()">Log it</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  saveExternal(){
+    const m=parseInt($("#exM").value,10),w=$("#exW").value.trim();
+    if(!m||m<1)return toast("Enter minutes");
+    logMin(Math.min(m,240));bumpStreak();
+    DB.notes.push({id:"n"+Date.now(),title:"External learning — "+todayStr(),body:(w||"logged")+" ("+m+" min)",u:Date.now()});
+    saveLocal();closeSheet();toast("+"+m+" min logged");render();},
   exportData(){
     const blob=new Blob([JSON.stringify(DB,null,2)],{type:"application/json"});
     const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="meridian-backup-"+todayStr()+".json";a.click();},
@@ -1288,6 +1521,7 @@ function render(){
 
 /* ---------- boot ---------- */
 render();
+startTicker();
 if(token()){Promise.all([fetchData(),pull()]).then(render);}
 if("serviceWorker" in navigator&&location.protocol.startsWith("http")){
   navigator.serviceWorker.register("sw.js").catch(()=>{});
