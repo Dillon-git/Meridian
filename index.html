@@ -127,6 +127,13 @@ nav button.active{color:var(--accent)}
 .reader .prose h4{color:var(--ink);font-size:17px;font-weight:650;margin:22px 0 8px}
 .reader .prose strong{color:var(--accent2);font-weight:650}
 [data-theme=dark] .reader .prose strong{color:var(--accent)}
+.reader .prose ul{margin:4px 0 16px;padding-left:0;list-style:none}
+.reader .prose ul li{position:relative;padding-left:22px;margin-bottom:9px;color:var(--ink);font-size:16px;line-height:1.55}
+.reader .prose ul li::before{content:"";position:absolute;left:4px;top:9px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.reader .prose blockquote{margin:16px 0;padding:12px 16px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 10px 10px 0;color:var(--ink);font-size:15.5px;line-height:1.55}
+.reader .prose blockquote strong{color:var(--accent2)}
+.reader .dg-inline{padding:18px 14px 14px;margin:18px 0}
+.reader .dg-inline .eyebrow{text-align:center}
 .takeaways{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:16px;margin:18px 0}
 .takeaways li{margin:0 0 10px 18px;font-size:14.5px;color:var(--ink2)}
 .takeaways li::marker{color:var(--accent)}
@@ -482,15 +489,29 @@ async function listInboxFiles(){
 }
 
 /* ---------- render helpers ---------- */
-function md(body){
+function md(body,dgs){
   const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>");
   return String(body||"").trim().split(/\n\n+/).map(p=>{
     p=p.trim();
+    const dm=p.match(/^\{\{DIAGRAM:(\d+)\}\}$/);
+    if(dm){
+      const dg=dgs&&dgs[+dm[1]];
+      if(!dg)return "";
+      return `<div class="card lux dg-inline"><div class="eyebrow">${esc(dg.cap||"How it flows")}</div>${dgSVG(dg)}</div>`;
+    }
     if(p.startsWith("## ")){
       const lines=p.split("\n");const hd=lines.shift();
       let out="<h4>"+esc(hd.slice(3))+"</h4>";
       if(lines.length)out+="<p>"+fmt(lines.join(" "))+"</p>";
       return out;
+    }
+    if(p.startsWith("- ")){
+      const its=p.split("\n").filter(l=>l.trim().startsWith("- ")).map(l=>l.trim().slice(2));
+      return "<ul>"+its.map(x=>"<li>"+fmt(x)+"</li>").join("")+"</ul>";
+    }
+    if(p.startsWith("> ")){
+      const lines=p.split("\n").map(l=>l.replace(/^>\s?/,""));
+      return "<blockquote>"+fmt(lines.join(" "))+"</blockquote>";
     }
     return "<p>"+fmt(p.replace(/\n/g," "))+"</p>";
   }).join("");
@@ -708,9 +729,12 @@ function vItem(){
     ${les?"":`<button class="btn small ghost" onclick="APP.editArtifact('${it.id}','summary')">Edit</button>`}
   </div>`;
   if(les){
+    const dgs=les.dgs||(les.dg?[les.dg]:null);
+    const hasMarkers=/\{\{DIAGRAM:\d+\}\}/.test(les.body||"");
+    const trailingDg=(dgs&&!hasMarkers)?dgs[0]:null;
     html+=`<div class="lede">${les.min} min · ${cards.length} cards ${it.edits&&it.edits.lesson?"· edited by you":""}</div>
-    <div class="prose">${md(les.body)}</div>
-    ${les.dg?`<div class="card lux" style="padding:20px 14px 14px"><div class="eyebrow" style="text-align:center">${esc(les.dg.cap||"How it flows")}</div>${dgSVG(les.dg)}</div>`:""}
+    <div class="prose">${md(les.body,dgs)}</div>
+    ${trailingDg?`<div class="card lux" style="padding:20px 14px 14px"><div class="eyebrow" style="text-align:center">${esc(trailingDg.cap||"How it flows")}</div>${dgSVG(trailingDg)}</div>`:""}
     ${les.ex?`<div class="takeaways" style="border-color:var(--accent-dim)"><div class="eyebrow" style="color:var(--accent)">In practice — auto finance</div><div class="prose" style="font-size:14.5px">${md(les.ex)}</div></div>`:""}
     <div class="takeaways"><div class="eyebrow">Keep these</div><ul>${(les.takeaways||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
     <div class="btnrow">
