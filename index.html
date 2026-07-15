@@ -249,6 +249,15 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .filelist{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
 .filelist span{background:var(--bg2);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--ink2)}
 .filelist span b{cursor:pointer;color:var(--red);margin-left:6px;font-weight:700}
+
+.phase{margin:18px 0 6px}
+.phase .row{align-items:baseline}
+.pbar{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;margin:6px 0 10px}
+.pbar i{display:block;height:100%;background:var(--accent);border-radius:3px}
+.pchips{display:flex;flex-wrap:wrap;gap:8px}
+.pchip{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.pchip .k{font-size:10px;color:var(--ink3);font-weight:700;text-transform:uppercase}
+.pchip.done{background:var(--green-soft);border-color:var(--green);color:var(--green)}
 .quizopt{display:block;width:100%;text-align:left;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:14px;margin-bottom:8px;cursor:pointer;font-family:var(--sans)}
 .setsec{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--ink3);font-weight:600;margin:18px 0 8px}
 .setbtn{display:block;width:100%;text-align:left;margin-bottom:8px}
@@ -290,7 +299,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -456,6 +465,7 @@ function mergeDB(rem){
   out.inboxDecisions=Object.assign({},rem.inboxDecisions,DB.inboxDecisions);
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
+  out.planProg=Object.assign({},rem.planProg||{},DB.planProg||{});
   out.goals=mergeItems(rem.goals,DB.goals);
   const rl=rem.meta||{},ll=DB.meta;
   out.meta.xp=Math.max(rl.xp||0,ll.xp||0);
@@ -519,6 +529,7 @@ async function listInboxFiles(){
 /* ---------- render helpers ---------- */
 function md(body,dgs){
   const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
+    .replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g,'<img src="$2" alt="$1" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:6px 0">')
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
   return String(body||"").trim().split(/\n\n+/).map(p=>{
     p=p.trim();
@@ -665,6 +676,8 @@ function coachPlan(){
   if(weak.length)focus.push("Shore up your weakest area: "+weak.map(c=>catOf(c).name).join(", ")+" — expect extra new cards there");
   const g=(DB.goals||[]).filter(x=>!x.del).sort((a,b)=>(a.target||"").localeCompare(b.target||""))[0];
   if(g)focus.push("Goal “"+g.title+"”"+(g.target?" — due "+g.target:"")+": complete the next lesson in its category");
+  const pl0=(DATA.studyPlans||[])[0];
+  if(pl0){const nx=nextChips(pl0,1);if(nx.length)focus.push("Study plan next up: "+nx[0].t+(nx[0].min?" ("+nx[0].min+" min)":""));}
   focus.push("Keep the streak: hit the 40-min ring at least 5 of 7 days");
   return {week:weekKey(),focus,rationale:"Fallback plan computed on-device from retention data — the weekly review generates a richer one."};
 }
@@ -687,7 +700,10 @@ function vToday(){
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log external</button></div>
   </div>
   <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
-    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
+    <span><button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button>
+    ${(DATA.studyPlans||[]).length?`<button class="btn small" onclick="APP.go('plan')">📚 Study plan${(()=>{const s=planStats(DATA.studyPlans[0]);return " "+s.pct+"%";})()}</button>`:""}</span></div>
+    ${(()=>{const pl=(DATA.studyPlans||[])[0];if(!pl)return "";const nx=nextChips(pl,2);
+      return nx.length?`<div style="margin-top:8px">${nx.map(c=>`<span class="pchip" style="margin:0 6px 6px 0" onclick="APP.chip('${pl.id}','${c.id}')">${esc(c.t)}</span>`).join("")}</div>`:"";})()}
     <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
     ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
   </div>
@@ -985,6 +1001,49 @@ function gradeRow(u){
     <button onclick="APP.grade(1)">Hard<span>${ivPreview(u.id,1)}</span></button>
     <button class="g-good" onclick="APP.grade(2)">Good<span>${ivPreview(u.id,2)}</span></button>
     <button class="g-easy" onclick="APP.grade(3)">Easy<span>${ivPreview(u.id,3)}</span></button></div>`;
+}
+
+/* ---------- Study plan ---------- */
+let PLANFILTER="all";
+function chipDone(c){
+  if(DB.planProg[c.id]&&DB.planProg[c.id].done)return true;
+  if(c.itemId&&DB.done[c.itemId])return true;
+  return false;
+}
+function planStats(pl){
+  const chips=pl.phases.flatMap(p=>p.chips);
+  const done=chips.filter(chipDone).length;
+  return {done,total:chips.length,pct:chips.length?Math.round(done/chips.length*100):0};
+}
+function nextChips(pl,n){
+  const out=[];
+  for(const ph of pl.phases){for(const c of ph.chips){if(!chipDone(c)){out.push(c);if(out.length>=n)return out;}}}
+  return out;
+}
+function vPlan(){
+  const pl=(DATA.studyPlans||[])[VIEW.p?(DATA.studyPlans||[]).findIndex(x=>x.id===VIEW.p):0]||(DATA.studyPlans||[])[0];
+  if(!pl)return header("Study plan")+`<div class="empty"><div class="glyph">📚</div><h3>No study plan yet</h3><p style="font-size:14px">Ask Claude to build one for a topic you want to master.</p></div>`;
+  const st=planStats(pl);
+  const FILTERS=[["all","All"],["lesson","Lessons"],["read","Reading"],["video","Videos"],["practice","Practice"]];
+  let html=header("Study plan")+`<h2 style="font-size:21px">${esc(pl.title)}</h2>
+  <p class="muted" style="font-size:13.5px;margin:4px 0 8px">${esc(pl.desc||"")}</p>
+  <div class="stats">
+    <div class="stat hi"><div class="n">${st.pct}%</div><div class="l">Complete</div></div>
+    <div class="stat"><div class="n" style="color:var(--green)">${st.done}</div><div class="l">Done</div></div>
+    <div class="stat"><div class="n">${st.total-st.done}</div><div class="l">Left</div></div>
+  </div>
+  <div class="pbar"><i style="width:${st.pct}%"></i></div>
+  <div class="chips" style="margin:10px 0 4px">${FILTERS.map(([id,name])=>`<button class="chip ${PLANFILTER===id?"active":""}" onclick="APP.planFilter('${id}')">${name}</button>`).join("")}</div>
+  ${(()=>{const nx=nextChips(pl,1);return nx.length?`<div class="btnrow" style="margin:6px 0 2px"><button class="btn solid small" onclick="APP.chip('${pl.id}','${nx[0].id}')">▶ Open next unfinished: ${esc(nx[0].t)}</button></div>`:`<div class="pill ok" style="margin:8px 0">Plan complete 🎉</div>`;})()}`;
+  const KIND={lesson:"◆ lesson",read:"📄 read",video:"▶ video",practice:"✎ practice",note:"📓 note"};
+  pl.phases.forEach((ph,pi)=>{
+    const pd=ph.chips.filter(chipDone).length;
+    html+=`<div class="phase"><div class="row"><h3 style="font-size:16px">${pi+1} · ${esc(ph.name)}</h3><span class="dim" style="font-size:12px">${pd}/${ph.chips.length}</span></div>
+    ${ph.desc?`<p class="dim" style="font-size:12.5px;margin-bottom:6px">${esc(ph.desc)}</p>`:""}
+    <div class="pchips">${ph.chips.filter(c=>PLANFILTER==="all"||c.k===PLANFILTER).map(c=>`<button class="pchip ${chipDone(c)?"done":""}" onclick="APP.chip('${pl.id}','${c.id}')">${chipDone(c)?"✓ ":""}${esc(c.t)} <span class="k">${(KIND[c.k]||c.k)}${c.min?" · "+c.min+"m":""}</span></button>`).join("")}</div></div>`;
+  });
+  html+=`<p class="dim" style="font-size:12px;margin-top:16px">Lesson chips complete automatically when you finish the lesson. Others: open, do, mark done — minutes count toward your ring.</p>`;
+  return html;
 }
 
 /* ---------- Desk ---------- */
@@ -1330,6 +1389,25 @@ const APP={
     DB.goals.push({id:"g"+Date.now(),title:ti,target:$("#glD").value.trim(),cats:c?[c]:[],u:Date.now()});
     saveLocal();APP.goalSheet();toast("Goal added");},
   delGoal(id){const g=DB.goals.find(x=>x.id===id);if(g){g.del=true;g.u=Date.now();saveLocal();}APP.goalSheet();},
+  planFilter(f){PLANFILTER=f;render();},
+  chip(planId,chipId){
+    const pl=(DATA.studyPlans||[]).find(x=>x.id===planId);if(!pl)return;
+    let chip=null;for(const ph of pl.phases){const c=ph.chips.find(x=>x.id===chipId);if(c){chip=c;break;}}
+    if(!chip)return;
+    const done=chipDone(chip);
+    openSheet(`<h3>${esc(chip.t)}</h3>
+    <p class="muted" style="font-size:14px;margin:8px 0 12px">${esc(chip.desc||"")}</p>
+    ${chip.itemId?`<button class="btn setbtn" onclick="APP.closeSheet();APP.item('${chip.itemId}')">◆ Open the lesson</button>`:""}
+    ${chip.url?`<a class="btn setbtn" style="display:block;text-decoration:none" href="${esc(chip.url)}" target="_blank">↗ Open resource${chip.min?" (~"+chip.min+" min)":""}</a>`:""}
+    ${chip.k==="practice"?`<p class="dim" style="font-size:12.5px;margin-bottom:8px">Do this as a note (Desk) or out loud, then mark done.</p>`:""}
+    ${done?`<button class="btn ghost setbtn" onclick="APP.markChip('${chipId}',0)">↩ Mark as not done</button>`:
+      (chip.itemId?`<p class="dim" style="font-size:12px">Completes automatically when the lesson is finished.</p>`:
+      `<button class="btn solid setbtn" style="text-align:center" onclick="APP.markChip('${chipId}',${chip.min||10})">✓ Mark done${chip.min?" · +"+chip.min+" min":""}</button>`)}
+    <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
+  markChip(chipId,min){
+    if(min>0){DB.planProg[chipId]={done:1,at:Date.now()};logMin(Math.min(min,120));bumpStreak();toast("✓ +"+min+" min");}
+    else{delete DB.planProg[chipId];toast("Reopened");}
+    saveLocal();closeSheet();render();},
   quotes(){
     const qs=DATA.quotes;
     openSheet(`<h3>Quotes &amp; maxims (${qs.length})</h3>
@@ -1504,6 +1582,7 @@ function render(){
   else switch(VIEW.name){
     case "inbox":html=vInbox();break;
     case "news":html=vNews();break;
+    case "plan":html=vPlan();break;
     case "library":html=vLibrary();break;
     case "item":html=vItem();break;
     case "review":html=vReview();break;
