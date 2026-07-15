@@ -250,6 +250,12 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .filelist span{background:var(--bg2);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--ink2)}
 .filelist span b{cursor:pointer;color:var(--red);margin-left:6px;font-weight:700}
 
+
+.mgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.mtile{border:1px solid var(--line2);border-radius:16px;padding:16px 14px;cursor:pointer;background:var(--card);text-align:left}
+.mtile .mg{font-size:26px;line-height:1;width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;margin-bottom:10px}
+.mtile h3{font-size:15px}
+.mtile p{font-size:12px;color:var(--ink3);margin-top:2px}
 .phase{margin:18px 0 6px}
 .phase .row{align-items:baseline}
 .pbar{height:6px;background:var(--bg2);border-radius:3px;overflow:hidden;margin:6px 0 10px}
@@ -270,7 +276,7 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 <body>
 <div id="app"></div>
 <nav id="nav" style="display:none"><div class="inner">
-  <button data-v="today"><span class="ico">◉</span>Today</button>
+  <button data-v="today"><span class="ico">◉</span>Plan</button>
   <button data-v="news"><span class="ico">☰</span>News</button>
   <button data-v="library"><span class="ico">▤</span>Library</button>
   <button data-v="review"><span class="ico">◈</span>Review</button>
@@ -299,7 +305,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -466,6 +472,9 @@ function mergeDB(rem){
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
   out.planProg=Object.assign({},rem.planProg||{},DB.planProg||{});
+  out.planCustom=Object.assign({},rem.planCustom||{});
+  for(const k in (DB.planCustom||{})){const a=out.planCustom[k],b=DB.planCustom[k];
+    if(!a||(b.u||0)>=(a.u||0))out.planCustom[k]=b;}
   out.goals=mergeItems(rem.goals,DB.goals);
   const rl=rem.meta||{},ll=DB.meta;
   out.meta.xp=Math.max(rl.xp||0,ll.xp||0);
@@ -615,6 +624,11 @@ function fmtDate(){return new Date().toLocaleDateString("en-US",{weekday:"long",
 function nextLessonItem(){
   return items().find(it=>it.lane==="learn"&&artifact(it,"lesson")&&!DB.done[it.id]&&(!it.req||DB.done[it.req]));
 }
+function extUrl(u){
+  const m=String(u||"").match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_-]{6,})/);
+  return m?("youtube://www.youtube.com/watch?v="+m[1]):u;
+}
+function isYT(u){return /youtube\.com|youtu\.be/.test(String(u||""));}
 function doyIndex(n){return n?Math.floor((Date.now()-new Date(new Date().getFullYear(),0,0))/DAY)%n:0;}
 function prevGenTime(){const p=localStorage.getItem("meridian.prevGen");return p?Date.parse(p)||0:0;}
 function isFresh(it){return it.updated&&Date.parse(it.updated)>prevGenTime()&&prevGenTime()>0;}
@@ -677,11 +691,11 @@ function coachPlan(){
   const g=(DB.goals||[]).filter(x=>!x.del).sort((a,b)=>(a.target||"").localeCompare(b.target||""))[0];
   if(g)focus.push("Goal “"+g.title+"”"+(g.target?" — due "+g.target:"")+": complete the next lesson in its category");
   const pl0=(DATA.studyPlans||[])[0];
-  if(pl0){const nx=nextChips(pl0,1);if(nx.length)focus.push("Study plan next up: "+nx[0].t+(nx[0].min?" ("+nx[0].min+" min)":""));}
+  if(pl0){const nx=nextChips(effPlan(pl0),1);if(nx.length)focus.push("Study plan next up: "+nx[0].t+(nx[0].min?" ("+nx[0].min+" min)":""));}
   focus.push("Keep the streak: hit the 40-min ring at least 5 of 7 days");
   return {week:weekKey(),focus,rationale:"Fallback plan computed on-device from retention data — the weekly review generates a richer one."};
 }
-function vToday(){
+function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   const due=dueUnits().length, fresh=Math.min(newUnits().length,newAllowance());
   const lesson=nextLessonItem();
   const q=DATA.quotes.length?DATA.quotes[doyIndex(DATA.quotes.length)]:null;
@@ -690,7 +704,7 @@ function vToday(){
   const pend=pendingProposals().length;
   const plan=coachPlan();
   const goals=(DB.goals||[]).filter(g=>!g.del);
-  return header()+`
+  return header("Study planner & tracker · "+fmtDate())+`
   ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`:""}
   <div class="card lux" style="margin-top:14px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
@@ -699,11 +713,9 @@ function vToday(){
     <div class="btnrow" style="margin-top:12px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">Continue session</button>
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log external</button></div>
   </div>
+  ${planSection()}
   <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
-    <span><button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button>
-    ${(DATA.studyPlans||[]).length?`<button class="btn small" onclick="APP.go('plan')">📚 Study plan${(()=>{const s=planStats(DATA.studyPlans[0]);return " "+s.pct+"%";})()}</button>`:""}</span></div>
-    ${(()=>{const pl=(DATA.studyPlans||[])[0];if(!pl)return "";const nx=nextChips(pl,2);
-      return nx.length?`<div style="margin-top:8px">${nx.map(c=>`<span class="pchip" style="margin:0 6px 6px 0" onclick="APP.chip('${pl.id}','${c.id}')">${esc(c.t)}</span>`).join("")}</div>`:"";})()}
+    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
     <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
     ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
   </div>
@@ -803,12 +815,10 @@ function vNews(){
 let libTab="cats", libFilter=null, glossQuery="";
 function vLibrary(){
   const tabs=`<div class="subtabs">
-    <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Categories</button>
+    <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Collections</button>
     <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button>
-    <button class="${libTab==="gloss"?"active":""}" onclick="APP.lib('gloss')">Glossary</button>
-    <button class="${libTab==="desk"?"active":""}" onclick="APP.lib('desk')">Desk</button></div>`;
+    <button class="${libTab==="gloss"?"active":""}" onclick="APP.lib('gloss')">Glossary</button></div>`;
   if(libTab==="gloss")return header("Library")+tabs+vGloss();
-  if(libTab==="desk")return header("Library")+tabs+vDesk();
   const all=items();
   if(libTab==="lanes"&&!libFilter){
     return header("Library")+tabs+LANES.map(([id,name,desc])=>{
@@ -819,15 +829,30 @@ function vLibrary(){
         <span class="progress-ring">${n}</span></div></div>`;}).join("");
   }
   if(libTab==="cats"&&!libFilter){
-    return header("Library")+tabs+DATA.categories.map(c=>{
-      const ls=all.filter(it=>(it.cats||[]).includes(c.id));
-      if(!ls.length)return "";
+    return header("Library")+tabs+`<div class="mgrid">`+masterCats().map(mc=>{
+      const ls=all.filter(it=>(it.cats||[]).some(c=>mc.cats.includes(c)));
       const done=ls.filter(it=>DB.done[it.id]).length;
-      return `<div class="card tap" onclick="APP.libFilter('${c.id}')"><div class="track">
-        <div class="glyph">${c.glyph||"·"}</div>
-        <div class="meta"><h3>${esc(c.name)}</h3><p>${esc(c.desc||"")}</p>
-        <div class="bar"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%"></i></div></div>
-        <div class="progress-ring">${done}/${ls.length}</div></div></div>`;}).join("");
+      return `<button class="mtile" onclick="APP.libFilter('${mc.id}')">
+        <div class="mg" style="background:${mc.bg};color:${mc.fg}">${mc.glyph}</div>
+        <h3>${esc(mc.name)}</h3><p>${ls.length} item${ls.length===1?"":"s"} · ${done} done</p>
+        <div class="bar" style="margin-top:8px"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%"></i></div></button>`;
+    }).join("")+`</div>`;
+  }
+  if(libTab==="cats"&&libFilter&&libFilter.startsWith("m-")){
+    const mc=masterCats().find(x=>x.id===libFilter);
+    let html=header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
+    <h2 style="font-size:21px;margin-bottom:10px"><span style="margin-right:6px">${mc.glyph}</span>${esc(mc.name)}</h2>`;
+    for(const cid of mc.cats){
+      const c=catOf(cid);
+      const ls=all.filter(it=>(it.cats||[]).includes(cid));
+      if(!ls.length)continue;
+      html+=`<div class="eyebrow" style="margin-top:14px">${esc(c.name)}</div>`+
+        ls.map(it=>`<div class="card tap" onclick="APP.item('${it.id}','library')"><div class="row">
+        <div><h3 style="font-size:15.5px">${esc(it.title)}${freshDot(it)}</h3>
+        <div class="body">${laneChip(it.lane)}</div></div>
+        ${DB.done[it.id]?'<span class="check">✓</span>':'<span class="dim">→</span>'}</div></div>`).join("");
+    }
+    return html;
   }
   const list=libTab==="lanes"?all.filter(it=>it.lane===libFilter):all.filter(it=>(it.cats||[]).includes(libFilter));
   const title=libTab==="lanes"?laneName(libFilter):catOf(libFilter).name;
@@ -872,7 +897,8 @@ function vItem(){
     }
     return `<button onclick="APP.graduateTo('${it.id}','${id}')">↑ ${name}</button>`;
   }).join("");
-  let html=`<div class="reader"><button class="back" onclick="APP.go('library')">← Library</button>
+  const backTo=VIEW.from==="today"?["today","← Back to plan"]:["library","← Library"];
+  let html=`<div class="reader"><button class="back" onclick="APP.go('${backTo[0]}')">${backTo[1]}</button>
   <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
   <h2>${esc(it.title)}</h2>
   <div class="stagenav">${stageBtns}</div>`;
@@ -910,6 +936,10 @@ function vItem(){
   if((it.history||[]).length){
     html+=`<div class="histbox"><strong>History:</strong><br>`+it.history.map(h=>`${esc(h.at||"")} — ${esc(laneName(LANE_LEGACY[h.lane]||h.lane)||h.lane)}`).join("<br>")+`</div>`;
   }
+  if(it.artifacts&&it.artifacts.qa&&it.artifacts.qa.length){
+    html+=`<div class="artif"><h5>Your questions, answered</h5>`+it.artifacts.qa.map(q=>`<div class="card"><p style="font-size:14px;font-weight:600;color:var(--ink)">Q: ${esc(q.q)}</p><div class="prose" style="font-size:14px;margin-top:6px">${md(q.a)}</div><p class="dim" style="font-size:11.5px;margin-top:6px">${esc(q.at||"")}</p></div>`).join("")+`</div>`;
+  }
+  html+=`<div class="btnrow" style="margin-top:14px"><button class="btn small ghost" onclick="APP.askClaude('item','${it.id}',this.dataset.t)" data-t="${esc(it.title)}">💬 Ask Claude about this</button></div>`;
   if(it.note_path)html+=`<p style="margin-top:14px;font-size:13.5px"><a style="color:var(--accent)" href="https://github.com/${repo()}/blob/main/${esc(it.note_path)}" target="_blank">Open deep note in vault →</a></p>`;
   return html+`<div style="height:30px"></div></div>`;
 }
@@ -917,14 +947,27 @@ function vItem(){
 /* ---------- Review ---------- */
 let SESSION=null;
 function reviewMode(){return localStorage.getItem("meridian.mode")||"flip";}
+let REVTAB="session";
 function vReview(){
+  if(REVTAB!=="session"){
+    const tabs=`<div class="subtabs">
+      <button onclick="APP.rev('session')">Session</button>
+      <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button>
+      <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button></div>`;
+    deskTab=REVTAB;
+    return header("Review")+tabs+vDesk();
+  }
   if(!SESSION){
     const due=interleave(dueUnits());
     const fresh=newUnits().slice(0,newAllowance());
     const q=[...due,...fresh];
     if(!q.length){
       const locked=allUnits().length-unlockedUnits().length;
-      return header("Review")+`<div class="empty"><div class="glyph">◈</div>
+      return header("Review")+`<div class="subtabs">
+      <button class="active" onclick="APP.rev('session')">Session</button>
+      <button onclick="APP.rev('notes')">Notes</button>
+      <button onclick="APP.rev('projects')">Projects</button></div>
+      <div class="empty"><div class="glyph">◈</div>
       <h3 style="margin-bottom:6px">All clear</h3>
       <p style="font-size:14px">Nothing due right now.${locked?"<br>Complete lessons to unlock "+locked+" more.":""}</p>
       <div style="margin-top:18px">${FLOW&&nextLessonItem()?`<button class="btn solid" onclick="APP.item('${nextLessonItem().id}')">Next: today's lesson →</button>`:`<button class="btn" onclick="APP.go('library')">Open library</button>`}</div></div>`;
@@ -1004,7 +1047,38 @@ function gradeRow(u){
 }
 
 /* ---------- Study plan ---------- */
-let PLANFILTER="all";
+let PLANFILTER="all", PLANEDIT=false;
+function effPlan(pl){
+  const cu=(DB.planCustom||{})[pl.id]||{};
+  const removed=new Set(cu.removed||[]);
+  const phases=pl.phases.map(ph=>{
+    let chips=ph.chips.filter(c=>!removed.has(c.id))
+      .concat((cu.added||[]).filter(a=>a.phase===ph.id&&!removed.has(a.id)));
+    const ord=(cu.orders||{})[ph.id];
+    if(ord&&ord.length){
+      chips=chips.slice().sort((a,b)=>{
+        const ia=ord.indexOf(a.id),ib=ord.indexOf(b.id);
+        return (ia<0?999:ia)-(ib<0?999:ib);});
+    }
+    return Object.assign({},ph,{chips});
+  });
+  return Object.assign({},pl,{phases});
+}
+function masterCats(){
+  if(DATA.masterCats&&DATA.masterCats.length)return DATA.masterCats;
+  return [
+   {id:"m-ai",name:"AI",glyph:"◆",bg:"var(--accent-soft)",fg:"var(--accent)",cats:["ai","aipd"]},
+   {id:"m-sr",name:"Search & Ranking",glyph:"⌕",bg:"#E6F1FB",fg:"#185FA5",cats:["mlsr"]},
+   {id:"m-pm",name:"Product Management",glyph:"▲",bg:"var(--green-soft)",fg:"var(--green)",cats:["strat","disc","data","exec","proto"]},
+   {id:"m-lead",name:"Leadership",glyph:"✦",bg:"var(--amber-soft)",fg:"var(--amber)",cats:["comm"]},
+   {id:"m-swe",name:"Software Engineering",glyph:"⌘",bg:"var(--bg2)",fg:"var(--ink2)",cats:["swe"]},
+   {id:"m-case",name:"Case Studies",glyph:"❡",bg:"var(--red-soft)",fg:"var(--red)",cats:["case"]},
+   {id:"m-intv",name:"Interview Prep",glyph:"◎",bg:"var(--accent-soft)",fg:"var(--accent2)",cats:["intv"]}];
+}
+function planCust(planId){
+  DB.planCustom[planId]=DB.planCustom[planId]||{removed:[],added:[],orders:{}};
+  return DB.planCustom[planId];
+}
 function chipDone(c){
   if(DB.planProg[c.id]&&DB.planProg[c.id].done)return true;
   if(c.itemId&&DB.done[c.itemId])return true;
@@ -1020,38 +1094,45 @@ function nextChips(pl,n){
   for(const ph of pl.phases){for(const c of ph.chips){if(!chipDone(c)){out.push(c);if(out.length>=n)return out;}}}
   return out;
 }
-function vPlan(){
-  const pl=(DATA.studyPlans||[])[VIEW.p?(DATA.studyPlans||[]).findIndex(x=>x.id===VIEW.p):0]||(DATA.studyPlans||[])[0];
-  if(!pl)return header("Study plan")+`<div class="empty"><div class="glyph">📚</div><h3>No study plan yet</h3><p style="font-size:14px">Ask Claude to build one for a topic you want to master.</p></div>`;
-  const st=planStats(pl);
-  const FILTERS=[["all","All"],["lesson","Lessons"],["read","Reading"],["video","Videos"],["practice","Practice"]];
-  let html=header("Study plan")+`<h2 style="font-size:21px">${esc(pl.title)}</h2>
-  <p class="muted" style="font-size:13.5px;margin:4px 0 8px">${esc(pl.desc||"")}</p>
-  <div class="stats">
-    <div class="stat hi"><div class="n">${st.pct}%</div><div class="l">Complete</div></div>
-    <div class="stat"><div class="n" style="color:var(--green)">${st.done}</div><div class="l">Done</div></div>
-    <div class="stat"><div class="n">${st.total-st.done}</div><div class="l">Left</div></div>
-  </div>
-  <div class="pbar"><i style="width:${st.pct}%"></i></div>
-  <div class="chips" style="margin:10px 0 4px">${FILTERS.map(([id,name])=>`<button class="chip ${PLANFILTER===id?"active":""}" onclick="APP.planFilter('${id}')">${name}</button>`).join("")}</div>
-  ${(()=>{const nx=nextChips(pl,1);return nx.length?`<div class="btnrow" style="margin:6px 0 2px"><button class="btn solid small" onclick="APP.chip('${pl.id}','${nx[0].id}')">▶ Open next unfinished: ${esc(nx[0].t)}</button></div>`:`<div class="pill ok" style="margin:8px 0">Plan complete 🎉</div>`;})()}`;
-  const KIND={lesson:"◆ lesson",read:"📄 read",video:"▶ video",practice:"✎ practice",note:"📓 note"};
-  pl.phases.forEach((ph,pi)=>{
-    const pd=ph.chips.filter(chipDone).length;
-    html+=`<div class="phase"><div class="row"><h3 style="font-size:16px">${pi+1} · ${esc(ph.name)}</h3><span class="dim" style="font-size:12px">${pd}/${ph.chips.length}</span></div>
-    ${ph.desc?`<p class="dim" style="font-size:12.5px;margin-bottom:6px">${esc(ph.desc)}</p>`:""}
-    <div class="pchips">${ph.chips.filter(c=>PLANFILTER==="all"||c.k===PLANFILTER).map(c=>`<button class="pchip ${chipDone(c)?"done":""}" onclick="APP.chip('${pl.id}','${c.id}')">${chipDone(c)?"✓ ":""}${esc(c.t)} <span class="k">${(KIND[c.k]||c.k)}${c.min?" · "+c.min+"m":""}</span></button>`).join("")}</div></div>`;
-  });
-  html+=`<p class="dim" style="font-size:12px;margin-top:16px">Lesson chips complete automatically when you finish the lesson. Others: open, do, mark done — minutes count toward your ring.</p>`;
+function planSection(){
+  const pls=(DATA.studyPlans||[]).map(effPlan);
+  if(!pls.length)return `<div class="card"><div class="eyebrow">Study plans</div><div class="body">Ask Claude to "build a study plan for [topic]".</div></div>`;
+  let html="";
+  for(const pl of pls){
+    const st=planStats(pl);
+    const FILTERS=[["all","All"],["lesson","Lessons"],["read","Reading"],["video","Videos"],["practice","Practice"]];
+    html+=`<div class="card lux" style="padding-bottom:10px">
+    <div class="row"><h3 style="font-size:16.5px">📚 ${esc(pl.title)}</h3>
+      <button class="btn small ${PLANEDIT?"solid":"ghost"}" onclick="APP.planEdit()">${PLANEDIT?"Done editing":"✎ Edit"}</button></div>
+    <div class="row" style="margin-top:8px;font-size:13px;color:var(--ink3)">
+      <span><strong style="color:var(--green);font-size:15px">${st.done}</strong> done · <strong style="font-size:15px;color:var(--ink)">${st.total-st.done}</strong> left</span>
+      <span style="font-weight:650;color:var(--accent);font-size:15px">${st.pct}%</span></div>
+    <div class="pbar"><i style="width:${st.pct}%"></i></div>
+    <div class="chips" style="margin:8px 0 2px">${FILTERS.map(([id,name])=>`<button class="chip ${PLANFILTER===id?"active":""}" onclick="APP.planFilter('${id}')">${name}</button>`).join("")}</div>
+    ${(()=>{const nx=nextChips(pl,1);return nx.length&&!PLANEDIT?`<div class="btnrow" style="margin:4px 0 6px"><button class="btn solid small" onclick="APP.chip('${pl.id}','${nx[0].id}')">▶ Next: ${esc(nx[0].t)}</button></div>`:"";})()}`;
+    const KIND={lesson:"◆",read:"📄",video:"▶",practice:"✎",note:"📓"};
+    pl.phases.forEach((ph,pi)=>{
+      const vis=ph.chips.filter(c=>PLANFILTER==="all"||c.k===PLANFILTER);
+      if(!vis.length&&!PLANEDIT)return;
+      const pd=ph.chips.filter(chipDone).length;
+      html+=`<div class="phase"><div class="row"><h3 style="font-size:14.5px">${pi+1} · ${esc(ph.name)}</h3><span class="dim" style="font-size:12px">${pd}/${ph.chips.length}</span></div>
+      <div class="pchips">${vis.map((c,ci)=>PLANEDIT?
+        `<span class="pchip ${chipDone(c)?"done":""}" style="padding-right:6px">${esc(c.t)}
+          <b style="cursor:pointer;color:var(--accent);margin-left:4px" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',-1)">▲</b>
+          <b style="cursor:pointer;color:var(--accent)" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',1)">▼</b>
+          <b style="cursor:pointer;color:var(--red)" onclick="APP.removeChip('${pl.id}','${c.id}')">✕</b></span>`:
+        `<button class="pchip ${chipDone(c)?"done":""}" onclick="APP.chip('${pl.id}','${c.id}')">${chipDone(c)?"✓ ":""}${esc(c.t)} <span class="k">${(KIND[c.k]||"")}${c.min?" "+c.min+"m":""}</span></button>`).join("")}
+      ${PLANEDIT?`<button class="pchip" style="border-style:dashed;color:var(--accent)" onclick="APP.addChipSheet('${pl.id}','${ph.id}')">＋ add step</button>`:""}</div></div>`;
+    });
+    html+=`</div>`;
+  }
   return html;
 }
 
 /* ---------- Desk ---------- */
 let deskTab="notes";
 function vDesk(){
-  const tabs=`<div class="chips">
-    <button class="chip ${deskTab==="notes"?"active":""}" onclick="APP.desk('notes')">Notes</button>
-    <button class="chip ${deskTab==="projects"?"active":""}" onclick="APP.desk('projects')">Projects</button></div>`;
+  const tabs="";
   if(deskTab==="notes"){
     const notes=(DB.notes||[]).filter(n=>!n.del).sort((a,b)=>(b.u||0)-(a.u||0));
     return tabs+(notes.length?notes.map(n=>
@@ -1069,8 +1150,8 @@ function vDesk(){
     `<div class="btnrow"><button class="btn" onclick="APP.editProject()">+ New project</button></div>`;
 }
 function vNote(){
-  const n=(DB.notes||[]).find(x=>x.id===VIEW.p);if(!n){libTab="desk";return vLibrary();}
-  return header("Note")+`<button class="back" onclick="APP.lib('desk')">← Desk</button>
+  const n=(DB.notes||[]).find(x=>x.id===VIEW.p);if(!n){REVTAB="notes";return vReview();}
+  return header("Note")+`<button class="back" onclick="APP.rev('notes')">← Notes</button>
   <h2 style="font-size:21px;margin-bottom:8px">${esc(n.title||"Untitled")}</h2>
   <p class="muted" style="white-space:pre-wrap;font-size:15px">${esc(n.body||"")}</p>
   <div class="btnrow">
@@ -1079,10 +1160,10 @@ function vNote(){
     <button class="btn small danger" onclick="APP.delNote('${n.id}')">Delete</button></div>`;
 }
 function vProject(){
-  const p=(DB.projects||[]).find(x=>x.id===VIEW.p);if(!p){libTab="desk";return vLibrary();}
+  const p=(DB.projects||[]).find(x=>x.id===VIEW.p);if(!p){REVTAB="projects";return vReview();}
   const sec=(label,arr)=>arr&&arr.length?`<div class="eyebrow" style="margin-top:16px">${label}</div>
     <ul style="margin:6px 0 0 18px">${arr.map(x=>`<li style="margin-bottom:8px;font-size:14.5px;color:var(--ink2)">${esc(x)}</li>`).join("")}</ul>`:"";
-  return header("Project")+`<button class="back" onclick="APP.lib('desk')">← Projects</button>
+  return header("Project")+`<button class="back" onclick="APP.rev('projects')">← Projects</button>
   <div class="row"><h2 style="font-size:21px">${esc(p.name)}</h2><span class="pill">${esc(p.status||"active")}</span></div>
   <p class="muted" style="margin-top:6px;font-size:14.5px">${esc(p.summary||"")}</p>
   ${sec("Remember",p.details)}${sec("Decisions",p.decisions)}${sec("Open questions",p.questions)}
@@ -1170,8 +1251,9 @@ const APP={
   startFlow(){FLOW=true;SESSION=null;nav("review");},
   lib(t){libTab=t;libFilter=null;nav("library");},
   libFilter(id){libFilter=id;nav("library");},
-  desk(t){deskTab=t;nav("library");},
-  item(id){nav("item",id);},
+  desk(t){deskTab=t;REVTAB=t;nav("review");},
+  rev(t){REVTAB=t;if(t==="session")SESSION=null;nav("review");},
+  item(id,from){VIEW={name:"item",p:id,from:from||null};render();window.scrollTo(0,0);},
   stageView(id,lane){STAGEVIEW[id]=lane;render();},
   graduateTo(id,lane){
     const it=item(id);if(!it)return;
@@ -1390,24 +1472,75 @@ const APP={
     saveLocal();APP.goalSheet();toast("Goal added");},
   delGoal(id){const g=DB.goals.find(x=>x.id===id);if(g){g.del=true;g.u=Date.now();saveLocal();}APP.goalSheet();},
   planFilter(f){PLANFILTER=f;render();},
+  planEdit(){PLANEDIT=!PLANEDIT;render();},
+  moveChip(planId,phaseId,chipId,dir){
+    const pl=effPlan((DATA.studyPlans||[]).find(x=>x.id===planId));
+    const ph=pl.phases.find(x=>x.id===phaseId);if(!ph)return;
+    const ids=ph.chips.map(c=>c.id);
+    const i=ids.indexOf(chipId);const j=i+dir;
+    if(i<0||j<0||j>=ids.length)return;
+    [ids[i],ids[j]]=[ids[j],ids[i]];
+    const cu=planCust(planId);cu.orders[phaseId]=ids;cu.u=Date.now();
+    saveLocal();render();},
+  removeChip(planId,chipId){
+    const cu=planCust(planId);
+    if(!cu.removed.includes(chipId))cu.removed.push(chipId);
+    cu.u=Date.now();saveLocal();render();},
+  addChipSheet(planId,phaseId){
+    const lessons=items().filter(it=>it.lane==="master"&&artifact(it,"lesson"));
+    openSheet(`<h3>Add a step</h3>
+    <label class="f">Pick a lesson from your library</label>
+    <select id="acL"><option value="">— none —</option>${lessons.map(l=>`<option value="${l.id}">${esc(l.title)}</option>`).join("")}</select>
+    <p class="dim" style="font-size:12px;margin:6px 0">…or create a custom step:</p>
+    <label class="f">Title</label><input type="text" id="acT" placeholder="e.g. Watch team's search deep-dive recording">
+    <label class="f">Type</label><select id="acK"><option value="practice">practice</option><option value="read">read</option><option value="video">video</option></select>
+    <label class="f">Minutes</label><input type="text" id="acM" inputmode="numeric" value="15">
+    <label class="f">Link (optional)</label><input type="text" id="acU" placeholder="https://…">
+    <div class="btnrow"><button class="btn solid" onclick="APP.addChip('${planId}','${phaseId}')">Add</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  addChip(planId,phaseId){
+    const li=$("#acL").value, ti=$("#acT").value.trim(), k=$("#acK").value,
+      mn=parseInt($("#acM").value,10)||15, u=$("#acU").value.trim();
+    const cu=planCust(planId);
+    if(li){
+      const it=item(li);
+      cu.added.push({id:"uc"+Date.now(),phase:phaseId,t:it.title,k:"lesson",min:(artifact(it,"lesson")||{}).min||10,itemId:li,desc:"Added by you from the library."});
+    }else if(ti){
+      cu.added.push({id:"uc"+Date.now(),phase:phaseId,t:ti,k,min:mn,desc:"Your custom step.",...(u?{url:u}:{})});
+    }else return toast("Pick a lesson or write a title");
+    cu.u=Date.now();saveLocal();closeSheet();toast("Step added");render();},
   chip(planId,chipId){
-    const pl=(DATA.studyPlans||[]).find(x=>x.id===planId);if(!pl)return;
+    let pl=(DATA.studyPlans||[]).find(x=>x.id===planId);if(!pl)return;
+    pl=effPlan(pl);
     let chip=null;for(const ph of pl.phases){const c=ph.chips.find(x=>x.id===chipId);if(c){chip=c;break;}}
     if(!chip)return;
     const done=chipDone(chip);
     openSheet(`<h3>${esc(chip.t)}</h3>
     <p class="muted" style="font-size:14px;margin:8px 0 12px">${esc(chip.desc||"")}</p>
-    ${chip.itemId?`<button class="btn setbtn" onclick="APP.closeSheet();APP.item('${chip.itemId}')">◆ Open the lesson</button>`:""}
-    ${chip.url?`<a class="btn setbtn" style="display:block;text-decoration:none" href="${esc(chip.url)}" target="_blank">↗ Open resource${chip.min?" (~"+chip.min+" min)":""}</a>`:""}
+    ${chip.itemId?`<button class="btn setbtn" onclick="APP.closeSheet();APP.item('${chip.itemId}','today')">◆ Open the lesson</button>`:""}
+    ${chip.url?`<a class="btn setbtn" style="display:block;text-decoration:none" href="${esc(extUrl(chip.url))}" ${isYT(chip.url)?"":'target="_blank"'}>${isYT(chip.url)?"▶ Open in YouTube app":"↗ Open resource"}${chip.min?" (~"+chip.min+" min)":""}</a>${isYT(chip.url)?`<a class="dim" style="display:block;font-size:12px;margin:-4px 0 8px 4px" href="${esc(chip.url)}" target="_blank">or open in browser</a>`:""}`:""}
     ${chip.k==="practice"?`<p class="dim" style="font-size:12.5px;margin-bottom:8px">Do this as a note (Desk) or out loud, then mark done.</p>`:""}
     ${done?`<button class="btn ghost setbtn" onclick="APP.markChip('${chipId}',0)">↩ Mark as not done</button>`:
       (chip.itemId?`<p class="dim" style="font-size:12px">Completes automatically when the lesson is finished.</p>`:
       `<button class="btn solid setbtn" style="text-align:center" onclick="APP.markChip('${chipId}',${chip.min||10})">✓ Mark done${chip.min?" · +"+chip.min+" min":""}</button>`)}
+    <button class="btn ghost setbtn" onclick="APP.askClaude('chip','${chipId}',this.dataset.t)" data-t="${esc(chip.t)}">💬 Ask Claude about this</button>
     <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
   markChip(chipId,min){
     if(min>0){DB.planProg[chipId]={done:1,at:Date.now()};logMin(Math.min(min,120));bumpStreak();toast("✓ +"+min+" min");}
     else{delete DB.planProg[chipId];toast("Reopened");}
     saveLocal();closeSheet();render();},
+  askClaude(kind,id,title){
+    openSheet(`<h3>Ask Claude</h3>
+    <p class="muted" style="font-size:13px;margin-bottom:8px">About: ${esc(title||id)}</p>
+    <textarea id="aqB" placeholder="Your question — answered on the next processing run and attached right here" style="min-height:90px"></textarea>
+    <div class="btnrow"><button class="btn solid" onclick="APP.sendQuestion('${kind}','${id}')">Send</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  async sendQuestion(kind,id){
+    const q=$("#aqB").value.trim();if(!q)return toast("Write a question");
+    try{
+      await captureToInbox("question-"+Date.now()+".md","---\ntype: question\nref_kind: "+kind+"\nref_id: "+id+"\n---\n\n"+q+"\n");
+      closeSheet();toast("Sent — answer lands on this page after the next ⚡/🔬 run");
+    }catch(e){toast("Couldn't reach GitHub");}},
   quotes(){
     const qs=DATA.quotes;
     openSheet(`<h3>Quotes &amp; maxims (${qs.length})</h3>
@@ -1478,8 +1611,8 @@ const APP={
     if(!t&&!b)return closeSheet();
     if(id){const n=DB.notes.find(x=>x.id===id);n.title=t;n.body=b;n.u=Date.now();}
     else DB.notes.push({id:"n"+Date.now(),title:t,body:b,u:Date.now()});
-    saveLocal();closeSheet();libTab="desk";nav("library");toast("Saved");},
-  delNote(id){const n=DB.notes.find(x=>x.id===id);if(n){n.del=true;n.u=Date.now();saveLocal();}libTab="desk";nav("library");},
+    saveLocal();closeSheet();nav("review");toast("Saved");},
+  delNote(id){const n=DB.notes.find(x=>x.id===id);if(n){n.del=true;n.u=Date.now();saveLocal();}REVTAB="notes";nav("review");},
   noteToCard(id){
     const n=DB.notes.find(x=>x.id===id);
     openSheet(`<h3>New flashcard</h3>
@@ -1511,8 +1644,8 @@ const APP={
     if(!data.name)return;
     if(id){Object.assign(DB.projects.find(x=>x.id===id),data);}
     else{data.id="p"+Date.now();DB.projects.push(data);}
-    saveLocal();closeSheet();libTab="desk";deskTab="projects";nav("library");toast("Saved");},
-  delProject(id){const p=DB.projects.find(x=>x.id===id);if(p){p.del=true;p.u=Date.now();saveLocal();}libTab="desk";deskTab="projects";nav("library");},
+    saveLocal();closeSheet();REVTAB="projects";deskTab="projects";nav("review");toast("Saved");},
+  delProject(id){const p=DB.projects.find(x=>x.id===id);if(p){p.del=true;p.u=Date.now();saveLocal();}REVTAB="projects";deskTab="projects";nav("review");},
   closeSheet,
   settings(){
     openSheet(`<h3>Settings</h3>
@@ -1582,7 +1715,7 @@ function render(){
   else switch(VIEW.name){
     case "inbox":html=vInbox();break;
     case "news":html=vNews();break;
-    case "plan":html=vPlan();break;
+    case "plan":html=vToday();break;
     case "library":html=vLibrary();break;
     case "item":html=vItem();break;
     case "review":html=vReview();break;
@@ -1593,7 +1726,7 @@ function render(){
   }
   $("#app").innerHTML=html;
   document.querySelectorAll("nav button").forEach(b=>{
-    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="library"));
+    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
     b.onclick=()=>APP.go(b.dataset.v);
   });
 }
