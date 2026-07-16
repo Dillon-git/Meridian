@@ -85,8 +85,10 @@ nav .inner{max-width:640px;margin:0 auto;display:flex;justify-content:space-arou
 nav button{background:none;border:none;color:var(--ink3);font-family:var(--sans);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;
   letter-spacing:.4px;padding:4px 10px;transition:color .2s}
-nav button .ico{font-size:18px;line-height:1.2}
+nav button .ico{font-size:18px;line-height:1.2;position:relative;display:inline-block}
 nav button.active{color:var(--accent)}
+.navbadge{position:absolute;top:-6px;right:-10px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;
+  line-height:1;padding:2px 4px;border-radius:8px;min-width:14px;text-align:center}
 
 /* stats strip */
 .stats{display:flex;gap:10px;margin-bottom:14px}
@@ -279,7 +281,7 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
   <button data-v="today"><span class="ico">◉</span>Plan</button>
   <button data-v="news"><span class="ico">☰</span>News</button>
   <button data-v="library"><span class="ico">▤</span>Library</button>
-  <button data-v="review"><span class="ico">◈</span>Review</button>
+  <button data-v="review"><span class="ico">◈<i class="navbadge" id="revBadge" style="display:none"></i></span>Review</button>
   <button data-v="progress"><span class="ico">△</span>Stats</button>
 </div></nav>
 <div class="toast" id="toast"></div>
@@ -362,6 +364,7 @@ function unlockedUnits(){
 function dueUnits(){const now=Date.now();return unlockedUnits().filter(u=>DB.srs[u.id]&&!DB.srs[u.id].susp&&DB.srs[u.id].due<=now);}
 function newUnits(){return unlockedUnits().filter(u=>!DB.srs[u.id]);}
 function newAllowance(){const t=todayStr();const used=(DB.meta.intake&&DB.meta.intake[t])||0;return Math.max(0,8-used);}
+function reviewBadgeCount(){return dueUnits().length+Math.min(newUnits().length,newAllowance());}
 function interleave(arr){
   const by={};arr.forEach(u=>{(by[u.cat]=by[u.cat]||[]).push(u);});
   const keys=Object.keys(by);const out=[];let more=true;
@@ -723,22 +726,18 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
     <h3>${pend} item${pend>1?"s":""} awaiting your decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
   ${(()=>{const fr=items().filter(isFresh).slice(0,4);return fr.length?`<div class="card"><div class="eyebrow">Updated overnight</div>
     ${fr.map(it=>`<div class="listitem" onclick="APP.item('${it.id}')" style="border:none;padding:8px 0"><h4>${esc(it.title)}<span class="dot"></span></h4></div>`).join("")}</div>`:"";})()}
-  <div class="card tap" onclick="APP.go('review')">
-    <div class="row"><div><div class="eyebrow">Step 1 · Recall</div><h3>Review</h3>
-    <div class="body">${due?due+" due":"Nothing overdue"}${fresh?" · "+fresh+" new":""}</div></div>
-    ${due+fresh?`<span class="badge">${due+fresh}</span>`:`<span class="check">✓</span>`}</div>
-  </div>
-  ${lesson?`<div class="card tap" onclick="APP.item('${lesson.id}')">
-    <div class="eyebrow">Step 2 · Learn</div>
-    <h3>${esc(lesson.title)}</h3>
-    <div class="body">${esc(catOf(lesson.cats[0]).name)} · ${artifact(lesson,"lesson").min} min read</div>
-  </div>`:`<div class="card"><div class="eyebrow">Step 2 · Learn</div><h3>Nothing queued</h3><div class="body">Capture something, or graduate a Filter item to Master.</div></div>`}
   ${ch?`<div class="card">
-    <div class="eyebrow">Step 3 · Apply</div>
+    <div class="eyebrow">Daily challenge</div>
     <div class="body" style="color:var(--ink);font-size:15px">${esc(ch.text)}</div>
+    ${chResourceLink(ch)}
     <div class="btnrow">${chDone?`<span class="pill ok">Completed ✓</span>`:`<button class="btn small solid" onclick="APP.drill()">Answer the drill</button>
     <button class="btn small ghost" onclick="APP.challengeDone()">Did it elsewhere +20</button>`}</div>
   </div>`:""}`;
+}
+function chResourceLink(ch){
+  if(ch.resItemId){const it=DATA.items.find(x=>x.id===ch.resItemId);if(it)return `<div style="margin:6px 0 2px"><a href="javascript:void(0)" onclick="APP.item('${it.id}')" style="font-size:13px;color:var(--accent);font-weight:600">📖 Review: ${esc(it.title)}</a></div>`;}
+  if(ch.resUrl)return `<div style="margin:6px 0 2px"><a href="${esc(ch.resUrl)}" target="_blank" rel="noopener" style="font-size:13px;color:var(--accent);font-weight:600">🔗 ${esc(ch.resLabel||"Background reading")}</a></div>`;
+  return "";
 }
 
 /* ---------- Inbox (composer) ---------- */
@@ -1446,8 +1445,8 @@ const APP={
     toast("Following "+r.name);render();},
   drill(){
     const ch=DATA.challenges[doyIndex(DATA.challenges.length)];if(!ch)return;
-    openSheet(`<h3>Apply drill</h3>
-    <div class="card" style="margin:10px 0"><div class="body" style="color:var(--ink)">${esc(ch.text)}</div></div>
+    openSheet(`<h3>Daily challenge</h3>
+    <div class="card" style="margin:10px 0"><div class="body" style="color:var(--ink)">${esc(ch.text)}</div>${chResourceLink(ch)}</div>
     <label class="f">Your response — this is what gets assessed</label>
     <textarea id="drB" placeholder="Write your answer here. It's saved to Desk → Notes and scored in your weekly review." style="min-height:140px"></textarea>
     <div class="btnrow"><button class="btn solid" onclick="APP.saveDrill()">Submit +20</button>
@@ -1737,6 +1736,10 @@ function render(){
     b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
     b.onclick=()=>APP.go(b.dataset.v);
   });
+  if(!setup){
+    const rb=$("#revBadge"),n=reviewBadgeCount();
+    if(rb){rb.style.display=n?"":"none";rb.textContent=n>99?"99+":n;}
+  }
 }
 
 /* ---------- boot ---------- */
