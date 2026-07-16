@@ -223,8 +223,8 @@ details.help a{color:var(--accent)}
 .choice.correct{border-color:var(--green);background:var(--green-soft)}
 .choice.wrong{border-color:var(--red);background:var(--red-soft)}
 .quote{border-left:3px solid var(--accent);border-radius:0;padding:4px 0 4px 14px;margin:4px 0}
-.quote .qt{font-size:15px;line-height:1.55;color:var(--ink)}
-.quote .qa{font-size:12.5px;color:var(--ink3);margin-top:6px}
+.quote .qt{font-size:15px;line-height:1.55;color:var(--ink);font-style:italic}
+.quote .qa{font-size:12.5px;color:var(--ink3);font-style:normal;white-space:nowrap}
 .srch{margin-bottom:12px}
 .glossitem{padding:12px 2px;border-bottom:1px solid var(--line2)}
 .glossitem h4{font-size:15px;font-weight:650}
@@ -705,13 +705,13 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   const plan=coachPlan();
   const goals=(DB.goals||[]).filter(g=>!g.del);
   return header("Study planner & tracker · "+fmtDate())+`
-  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`:""}
+  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}
   <div class="card lux" style="margin-top:14px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
     <span class="tmrbox" id="tmr">--:--</span><br>
     <span style="font-size:12.5px;color:var(--ink3)">counts while the app is open · ${due+fresh?due+fresh+" to recall":"reviews clear"}${lesson?" · 1 lesson":""}</span></div></div>
-    <div class="btnrow" style="margin-top:12px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">Continue session</button>
-    <button class="btn ghost small" onclick="APP.logExternal()">+ Log external</button></div>
+    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">▶ Continue</button>
+    <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
   </div>
   ${planSection()}
   <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
@@ -1047,7 +1047,7 @@ function gradeRow(u){
 }
 
 /* ---------- Study plan ---------- */
-let PLANFILTER="all", PLANEDIT=false;
+let PLANFILTER="all", PLANEDIT=false, PLANOPEN={};
 function effPlan(pl){
   const cu=(DB.planCustom||{})[pl.id]||{};
   const removed=new Set(cu.removed||[]);
@@ -1100,10 +1100,17 @@ function planSection(){
   let html="";
   for(const pl of pls){
     const st=planStats(pl);
+    const open=!!PLANOPEN[pl.id];
+    if(!open){
+      html+=`<button class="pchip" style="display:flex;width:100%;justify-content:space-between;align-items:center;margin-bottom:10px;padding:10px 14px" onclick="APP.planToggle('${pl.id}')">
+        <span>📚 ${esc(pl.title)} <span class="dim" style="font-size:12px;font-weight:500">· ${st.done}/${st.total} · ${st.pct}%</span></span>
+        <span style="color:var(--accent);font-weight:700">▸</span></button>`;
+      continue;
+    }
     const FILTERS=[["all","All"],["lesson","Lessons"],["read","Reading"],["video","Videos"],["practice","Practice"]];
     html+=`<div class="card lux" style="padding-bottom:10px">
-    <div class="row"><h3 style="font-size:16.5px">📚 ${esc(pl.title)}</h3>
-      <button class="btn small ${PLANEDIT?"solid":"ghost"}" onclick="APP.planEdit()">${PLANEDIT?"Done editing":"✎ Edit"}</button></div>
+    <div class="row"><h3 style="font-size:16.5px;cursor:pointer" onclick="APP.planToggle('${pl.id}')"><span style="color:var(--accent);margin-right:4px">▾</span>📚 ${esc(pl.title)}</h3>
+      <button class="btn small ${PLANEDIT?"solid":"ghost"}" style="padding:6px 11px" onclick="APP.planEdit()" title="${PLANEDIT?"Done editing":"Edit"}">${PLANEDIT?"✓":"✎"}</button></div>
     <div class="row" style="margin-top:8px;font-size:13px;color:var(--ink3)">
       <span><strong style="color:var(--green);font-size:15px">${st.done}</strong> done · <strong style="font-size:15px;color:var(--ink)">${st.total-st.done}</strong> left</span>
       <span style="font-weight:650;color:var(--accent);font-size:15px">${st.pct}%</span></div>
@@ -1473,6 +1480,7 @@ const APP={
   delGoal(id){const g=DB.goals.find(x=>x.id===id);if(g){g.del=true;g.u=Date.now();saveLocal();}APP.goalSheet();},
   planFilter(f){PLANFILTER=f;render();},
   planEdit(){PLANEDIT=!PLANEDIT;render();},
+  planToggle(id){PLANOPEN[id]=!PLANOPEN[id];render();},
   moveChip(planId,phaseId,chipId,dir){
     const pl=effPlan((DATA.studyPlans||[]).find(x=>x.id===planId));
     const ph=pl.phases.find(x=>x.id===phaseId);if(!ph)return;
@@ -1544,7 +1552,7 @@ const APP={
   quotes(){
     const qs=DATA.quotes;
     openSheet(`<h3>Quotes &amp; maxims (${qs.length})</h3>
-    ${qs.slice(0,400).map(q=>`<div class="quote" style="margin-bottom:12px"><div class="qt" style="font-size:14px">“${esc(q.text)}”</div><div class="qa">— ${esc(q.by)}</div></div>`).join("")}`);},
+    ${qs.slice(0,400).map(q=>`<div class="quote" style="margin-bottom:12px"><div class="qt" style="font-size:14px">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`).join("")}`);},
   reveal(){SESSION.shown=true;render();},
   checkTyped(){const el=$("#typedIn");SESSION.typed=el?el.value.trim():"";SESSION.shown=true;render();},
   pick(i){SESSION.picked=i;SESSION.shown=true;render();},
