@@ -487,7 +487,7 @@ async function fetchData(){
     const d=JSON.parse(txt);
     if(d&&d.v===3&&d.generated!==DATA.generated){
       if(DATA.generated)localStorage.setItem("meridian.prevGen",DATA.generated);
-      DATA=d;localStorage.setItem("meridian.data",txt);render();
+      DATA=d;try{localStorage.setItem("meridian.data",txt);}catch(e){/* quota: run without offline cache */}render();
     }
   }catch(e){console.warn("data fetch",e);}
 }
@@ -575,7 +575,7 @@ async function listInboxFiles(){
 /* ---------- render helpers ---------- */
 function md(body,dgs){
   const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
-    .replace(/!\[([^\]]*)\]\((https?:[^)\s]+)\)/g,'<img src="$2" alt="$1" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:6px 0">')
+    .replace(/!\[([^\]]*)\]\((https?:[^)\s]+|data:image\/[^)\s]+)\)/g,'<img src="$2" alt="$1" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:6px 0">')
     .replace(/\[([^\]]+)\]\((https?:[^)\s]+)\)/g,'<a href="$2" target="_blank" style="color:var(--accent)">$1</a>');
   return String(body||"").trim().split(/\n\n+/).map(p=>{
     p=p.trim();
@@ -932,7 +932,7 @@ function glossSections(){
    {id:"gs-ops",name:"Deployment, Perf & Cost",glyph:"⚡",bg:"var(--amber-soft)",fg:"var(--amber)",cats:["Deployment & Operations","Model Performance & Cost"]},
    {id:"gs-safe",name:"Safety & Governance",glyph:"⛨",bg:"var(--red-soft)",fg:"var(--red)",cats:["Safety, Ethics & Alignment","AI Governance & Compliance"]},
    {id:"gs-sr",name:"Search & Personalization",glyph:"⌖",bg:"#E6F1FB",fg:"#185FA5",cats:["Search, Ranking & Personalization"]},
-   {id:"gs-sys",name:"System Design & Engineering",glyph:"⌘",bg:"var(--bg2)",fg:"var(--ink2)",cats:["System Design"]}];
+   {id:"gs-sys",name:"System Design & Engineering",glyph:"⬡",bg:"var(--bg2)",fg:"var(--ink2)",cats:["System Design"]}];
 }
 function vGlossTab(){
   if(GLOSSSEC||glossQuery)return header("Glossary")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
