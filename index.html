@@ -282,7 +282,7 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
   <button data-v="news"><span class="ico">☰</span>News</button>
   <button data-v="library"><span class="ico">▤</span>Library</button>
   <button data-v="review"><span class="ico">◈<i class="navbadge" id="revBadge" style="display:none"></i></span>Review</button>
-  <button data-v="progress"><span class="ico">△</span>Stats</button>
+  <button data-v="gloss"><span class="ico">▦</span>Glossary</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -307,7 +307,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -475,6 +475,7 @@ function mergeDB(rem){
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
   out.planProg=Object.assign({},rem.planProg||{},DB.planProg||{});
+  out.userColls=mergeItems(rem.userColls,DB.userColls);
   out.planCustom=Object.assign({},rem.planCustom||{});
   for(const k in (DB.planCustom||{})){const a=out.planCustom[k],b=DB.planCustom[k];
     if(!a||(b.u||0)>=(a.u||0))out.planCustom[k]=b;}
@@ -717,6 +718,7 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
   </div>
   ${planSection()}
+  <details class="prev" style="margin:0 0 12px"><summary>📊 Stats & progress</summary>${statsBody()}</details>
   <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
     <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
     <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
@@ -835,7 +837,27 @@ function vLibrary(){
         <div class="mg" style="background:${mc.bg};color:${mc.fg}">${mc.glyph}</div>
         <h3>${esc(mc.name)}</h3><p>${ls.length} item${ls.length===1?"":"s"} · ${done} done</p>
         <div class="bar" style="margin-top:8px"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%"></i></div></button>`;
-    }).join("")+`</div>`;
+    }).join("")+((DB.userColls||[]).filter(c=>!c.del).map(uc=>{
+      const ls=(uc.itemIds||[]).map(id=>item(id)).filter(Boolean);
+      const done=ls.filter(it=>DB.done[it.id]).length;
+      return `<button class="mtile" onclick="APP.libFilter('u-${uc.id}')">
+        <div class="mg" style="background:var(--accent-soft);color:var(--accent)">${esc(uc.glyph||"★")}</div>
+        <h3>${esc(uc.name)}</h3><p>${ls.length} items · ${done} done</p></button>`;}).join(""))+
+    `<button class="mtile" style="border-style:dashed" onclick="APP.newColl()">
+      <div class="mg" style="background:var(--bg2);color:var(--ink3)">＋</div>
+      <h3>New collection</h3><p>your own grouping</p></button></div>`;
+  }
+  if(libTab==="cats"&&libFilter&&libFilter.startsWith("u-")){
+    const uc=(DB.userColls||[]).find(x=>"u-"+x.id===libFilter);
+    if(!uc){libFilter=null;return vLibrary();}
+    const ls=(uc.itemIds||[]).map(id=>item(id)).filter(Boolean);
+    return header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
+    <div class="row"><h2 style="font-size:21px;margin-bottom:10px">${esc(uc.glyph||"★")} ${esc(uc.name)}</h2>
+    <button class="btn small danger" onclick="APP.delColl('${uc.id}')">✕</button></div>
+    ${ls.map(it=>`<div class="card tap"><div class="row" onclick="APP.item('${it.id}','library')">
+      <div><h3 style="font-size:15.5px">${esc(it.title)}</h3><div class="body">${laneChip(it.lane)}</div></div>
+      <span class="dim" onclick="event.stopPropagation();APP.collRemove('${uc.id}','${it.id}')" style="color:var(--red);cursor:pointer">✕</span></div></div>`).join("")||"<p class='dim'>Empty.</p>"}
+    <div class="btnrow"><button class="btn" onclick="APP.collAdd('${uc.id}')">＋ Add element</button></div>`;
   }
   if(libTab==="cats"&&libFilter&&libFilter.startsWith("m-")){
     const mc=masterCats().find(x=>x.id===libFilter);
@@ -864,9 +886,41 @@ function vLibrary(){
   `<div class="empty"><p>Nothing here yet.</p></div>`}`;
 }
 function glossReadCount(){return Object.keys(DB.glossRead||{}).length;}
+let GLOSSSEC=null;
+function glossSections(){
+  if(DATA.glossSections&&DATA.glossSections.length)return DATA.glossSections;
+  return [
+   {id:"gs-pm",name:"AI Product Management",glyph:"▲",bg:"var(--green-soft)",fg:"var(--green)",cats:["AI Product Management"]},
+   {id:"gs-gen",name:"GenAI & Models",glyph:"◆",bg:"var(--accent-soft)",fg:"var(--accent)",cats:["Generative AI: Basic Terms","AI Models","Neural Networks & Transformers"]},
+   {id:"gs-prompt",name:"Prompting & Context",glyph:"✎",bg:"var(--amber-soft)",fg:"var(--amber)",cats:["Prompting & Context Management"]},
+   {id:"gs-rag",name:"RAG & Retrieval",glyph:"⌕",bg:"#E6F1FB",fg:"#185FA5",cats:["Retrieval-Augmented Generation"]},
+   {id:"gs-agent",name:"Agents & Orchestration",glyph:"⚙",bg:"var(--accent-soft)",fg:"var(--accent2)",cats:["AI Agents","Agent Loops & Orchestration"]},
+   {id:"gs-eval",name:"Evals & Quality",glyph:"✓",bg:"var(--green-soft)",fg:"var(--green)",cats:["AI Evals (AI Evaluation Systems)","Data & Feature Management"]},
+   {id:"gs-ops",name:"Deployment, Perf & Cost",glyph:"⚡",bg:"var(--amber-soft)",fg:"var(--amber)",cats:["Deployment & Operations","Model Performance & Cost"]},
+   {id:"gs-safe",name:"Safety & Governance",glyph:"⛨",bg:"var(--red-soft)",fg:"var(--red)",cats:["Safety, Ethics & Alignment","AI Governance & Compliance"]},
+   {id:"gs-sr",name:"Search & Personalization",glyph:"⌖",bg:"#E6F1FB",fg:"#185FA5",cats:["Search, Ranking & Personalization"]},
+   {id:"gs-sys",name:"System Design & Engineering",glyph:"⌘",bg:"var(--bg2)",fg:"var(--ink2)",cats:["System Design"]}];
+}
+function vGlossTab(){
+  if(GLOSSSEC||glossQuery)return header("Glossary")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
+  const secs=glossSections();
+  return header("Glossary")+`<div class="row" style="margin-bottom:8px">
+    <span class="dim" style="font-size:13px">${glossReadCount()} of ${DATA.glossary.length} read · quiz every 5</span>
+    <button class="btn small ghost" onclick="APP.addTermReq()">＋ term</button></div>
+  <input class="srch" type="text" placeholder="Search all ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
+  <div class="mgrid">${secs.map(s=>{
+    const terms=DATA.glossary.filter(g=>s.cats.includes(g.cat));
+    if(!terms.length)return "";
+    const read=terms.filter(g=>(DB.glossRead||{})[g.id]).length;
+    return `<button class="mtile" onclick="APP.glossSec('${s.id}')">
+      <div class="mg" style="background:${s.bg};color:${s.fg}">${s.glyph}</div>
+      <h3>${esc(s.name)}</h3><p>${terms.length} terms · ${read} read</p>
+      <div class="bar" style="margin-top:8px"><i style="width:${terms.length?Math.round(read/terms.length*100):0}%"></i></div></button>`;}).join("")}</div>`;
+}
 function vGloss(){
   const q=glossQuery.toLowerCase();
-  const terms=DATA.glossary.filter(g=>!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q));
+  const sec=GLOSSSEC?glossSections().find(s=>s.id===GLOSSSEC):null;
+  const terms=DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q)));
   return `<div class="row" style="margin-bottom:8px"><span class="dim" style="font-size:13px">${glossReadCount()} of ${DATA.glossary.length} read · quiz every 5</span>
   <button class="btn small ghost" onclick="APP.addTermReq()">＋ term</button></div>
   <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}"
@@ -875,8 +929,12 @@ function vGloss(){
     const read=(DB.glossRead||{})[g.id];
     return `<div class="glossitem"><div class="row" style="cursor:pointer" onclick="APP.glossOpen('${g.id}')">
     <h4>${read?"✓ ":""}${esc(g.term)}</h4><span class="dim" style="font-size:12px">${GLOSSOPEN[g.id]?"▾":"▸"}</span></div>
-    ${GLOSSOPEN[g.id]?`<p>${esc(g.def)}</p><div class="row"><span class="gcat">${esc(g.cat)} · verified ${esc(g.verified||"")}</span>
-    <button class="btn small ghost" onclick="APP.glossToCard('${g.id}')">→ review</button></div>`:""}</div>`;}).join("")}
+    ${GLOSSOPEN[g.id]?`${g.img?`<img src="${esc(g.img)}" alt="" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:8px 0">`:""}<p>${esc(g.def)}</p>
+    <div class="btnrow" style="margin-top:8px">
+      <button class="btn small ghost" onclick="APP.glossToCard('${g.id}')">→ review</button>
+      <button class="btn small ghost" onclick="APP.glossGraduate('${g.id}')">↑ Understand</button>
+      ${g.link?`<a class="btn small ghost" style="text-decoration:none" href="${esc(g.link)}" target="_blank">🔗 learn more</a>`:""}</div>
+    <span class="gcat">${esc(g.cat)} · verified ${esc(g.verified||"")}</span>`:""}</div>`;}).join("")}
   ${terms.length>80?`<p class="dim" style="margin-top:10px">Showing 80 of ${terms.length} — refine your search.</p>`:""}`;
 }
 
@@ -1178,7 +1236,7 @@ function vProject(){
 }
 
 /* ---------- Stats (rich) ---------- */
-function vProgress(){
+function statsBody(){
   const units=unlockedUnits();const seen=units.filter(u=>DB.srs[u.id]).length;
   const mastered=units.filter(u=>DB.srs[u.id]&&(DB.srs[u.id].s||0)>=21).length;
   const doneLessons=Object.keys(DB.done).filter(k=>k.indexOf("challenge")<0).length;
@@ -1213,7 +1271,7 @@ function vProgress(){
   const cl=DB.meta.catlog||{};
   const catRows=Object.keys(cl).filter(c=>cl[c].n>=5).map(c=>({c,r:Math.round((1-cl[c].a/cl[c].n)*100),n:cl[c].n})).sort((a,b)=>a.r-b.r);
   const catCol=r=>r>=85?"var(--green)":r>=70?"var(--amber)":"var(--red)";
-  return header("Stats")+`
+  return `
   <div class="stats">
     <div class="stat hi"><div class="n">🔥 ${DB.meta.streak||0}</div><div class="l">Streak</div></div>
     <div class="stat"><div class="n" style="color:${retention==null?"var(--ink)":catCol(retention)}">${retention==null?"—":retention+"%"}</div><div class="l">Retention 30d</div></div>
@@ -1275,10 +1333,62 @@ const APP={
     setItemState(id,{lane,history:hist});
     delete STAGEVIEW[id];
     closeSheet();toast("Graduated — run 🔬 Full process to generate "+laneName(lane)+" artifacts");render();},
+  glossSec(id){GLOSSSEC=id;glossQuery="";nav("gloss");},
+  glossBack(){GLOSSSEC=null;glossQuery="";nav("gloss");},
+  async glossGraduate(gid){
+    const g=DATA.glossary.find(x=>x.id===gid);if(!g)return;
+    try{
+      await captureToInbox("glossary-graduate-"+Date.now()+".md","---\ntype: glossary-graduate\nterm_id: "+gid+"\nterm: "+g.term+"\n---\n");
+      toast("↑ Understand note will be built on the next 🔬 run");
+    }catch(e){toast("Couldn't reach GitHub");}},
+  chipSummary(planId,chipId){
+    let pl=(DATA.studyPlans||[]).find(x=>x.id===planId);if(!pl)return;
+    pl=effPlan(pl);
+    let chip=null;for(const ph of pl.phases){const c=ph.chips.find(x=>x.id===chipId);if(c){chip=c;break;}}
+    if(!chip)return;
+    let sum=chip.sum||"";
+    if(!sum&&chip.itemId){
+      const it=item(chip.itemId);
+      if(it){
+        const les=artifact(it,"lesson"),note=artifact(it,"note"),summ=artifact(it,"summary");
+        if(les){
+          const heads=(les.body||"").split("\n").filter(l=>l.startsWith("## ")).map(h=>"- "+h.slice(3)).join("\n");
+          sum="**What it covers:**\n\n"+heads+"\n\n**Keep these:**\n\n"+(les.takeaways||[]).map(x=>"- "+x).join("\n");
+        }else sum=note||summ||"";
+      }
+    }
+    if(!sum)sum=chip.desc||"No summary available yet — ask Claude to add one.";
+    openSheet(`<h3>${esc(chip.t)} — summary</h3><div class="prose" style="font-size:14.5px">${md(sum)}</div>
+    <div class="btnrow">${chip.itemId?`<button class="btn solid" onclick="APP.closeSheet();APP.item('${chip.itemId}','today')">Open the full lesson</button>`:""}
+    <button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
+  newColl(){
+    openSheet(`<h3>New collection</h3>
+    <label class="f">Name</label><input type="text" id="ncN" placeholder="e.g. Launch prep">
+    <label class="f">Emoji/glyph</label><input type="text" id="ncG" placeholder="★" maxlength="2">
+    <div class="btnrow"><button class="btn solid" onclick="APP.saveColl()">Create</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  saveColl(){
+    const n=$("#ncN").value.trim();if(!n)return toast("Name it");
+    DB.userColls.push({id:"col"+Date.now(),name:n,glyph:($("#ncG").value.trim()||"★"),itemIds:[],u:Date.now()});
+    saveLocal();closeSheet();render();toast("Collection created");},
+  delColl(id){const c=DB.userColls.find(x=>x.id===id);if(c){c.del=true;c.u=Date.now();saveLocal();}libFilter=null;render();},
+  collAdd(id){
+    const all=items();
+    openSheet(`<h3>Add element</h3>
+    <select id="caI">${all.map(it=>`<option value="${it.id}">${esc(it.title)}</option>`).join("")}</select>
+    <div class="btnrow"><button class="btn solid" onclick="APP.collAddDo('${id}')">Add</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  collAddDo(id){
+    const c=DB.userColls.find(x=>x.id===id);const iid=$("#caI").value;
+    if(c&&iid&&!(c.itemIds||[]).includes(iid)){c.itemIds=(c.itemIds||[]).concat([iid]);c.u=Date.now();saveLocal();}
+    closeSheet();render();},
+  collRemove(id,iid){
+    const c=DB.userColls.find(x=>x.id===id);
+    if(c){c.itemIds=(c.itemIds||[]).filter(x=>x!==iid);c.u=Date.now();saveLocal();render();}},
   glossSearch(v){glossQuery=v;
     const box=document.querySelector(".srch");
     const pos=box?box.selectionStart:0;
-    $("#app").innerHTML=vLibrary();
+    $("#app").innerHTML=(VIEW.name==="gloss")?vGlossTab():vLibrary();
     const nb=document.querySelector(".srch");if(nb){nb.focus();nb.setSelectionRange(pos,pos);}},
   glossOpen(id){
     GLOSSOPEN[id]=!GLOSSOPEN[id];
@@ -1530,6 +1640,7 @@ const APP={
     ${done?`<button class="btn ghost setbtn" onclick="APP.markChip('${chipId}',0)">↩ Mark as not done</button>`:
       (chip.itemId?`<p class="dim" style="font-size:12px">Completes automatically when the lesson is finished.</p>`:
       `<button class="btn solid setbtn" style="text-align:center" onclick="APP.markChip('${chipId}',${chip.min||10})">✓ Mark done${chip.min?" · +"+chip.min+" min":""}</button>`)}
+    <button class="btn setbtn" onclick="APP.chipSummary('${planId}','${chipId}')">📖 View summary</button>
     <button class="btn ghost setbtn" onclick="APP.askClaude('chip','${chipId}',this.dataset.t)" data-t="${esc(chip.t)}">💬 Ask Claude about this</button>
     <div class="btnrow"><button class="btn ghost" onclick="APP.closeSheet()">Close</button></div>`);},
   markChip(chipId,min){
@@ -1728,7 +1839,7 @@ function render(){
     case "review":html=vReview();break;
     case "note":html=vNote();break;
     case "project":html=vProject();break;
-    case "progress":html=vProgress();break;
+    case "gloss":html=vGlossTab();break;
     default:html=vToday();
   }
   $("#app").innerHTML=html;
