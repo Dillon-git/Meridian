@@ -228,10 +228,41 @@ details.help a{color:var(--accent)}
 .quote .qt{font-size:15px;line-height:1.55;color:var(--ink);font-style:italic}
 .quote .qa{font-size:12.5px;color:var(--ink3);font-style:normal;white-space:nowrap}
 .srch{margin-bottom:12px}
-.glossitem{padding:12px 2px;border-bottom:1px solid var(--line2)}
-.glossitem h4{font-size:15px;font-weight:650}
-.glossitem p{font-size:13.5px;color:var(--ink2);margin-top:3px}
-.glossitem .gcat{font-size:11px;color:var(--ink3)}
+/* glossary tab header: search inline with add button */
+.gloss-head{display:flex;gap:10px;align-items:stretch;margin-bottom:10px}
+.gloss-head .srch{flex:1;margin:0}
+.addbtn{flex:0 0 auto;width:46px;border:1px solid var(--line);background:var(--card);color:var(--accent);
+  border-radius:12px;font-size:24px;font-weight:400;line-height:1;cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center}
+.addbtn:active{transform:scale(.94)}
+/* lighter section term list */
+.glossitem{padding:15px 2px;border-bottom:1px solid var(--line2)}
+.glossitem:last-child{border-bottom:none}
+.glossitem h4{font-size:15px;font-weight:550;color:var(--ink);letter-spacing:-.1px}
+.glossitem p{font-size:14px;color:var(--ink2);margin-top:7px;line-height:1.55}
+.glossitem .gcat{display:block;font-size:11px;color:var(--ink3);margin-top:8px}
+.gread{color:var(--green);font-weight:700;font-size:12.5px;margin-right:5px}
+.gcaret{font-size:12px;color:var(--ink3);font-weight:400}
+/* glossary discover carousel */
+.gcar-wrap{position:relative;margin:2px -20px 20px}
+.gcar{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
+  padding:4px 20px 12px;scrollbar-width:none}
+.gcar::-webkit-scrollbar{display:none}
+.gcard{scroll-snap-align:center;flex:0 0 84%;background:var(--card);border:1px solid var(--line2);
+  box-shadow:var(--shadow);border-radius:18px;padding:18px 18px 16px;display:flex;flex-direction:column;min-height:172px}
+.gcard .gc-cat{font-size:10.5px;letter-spacing:.8px;text-transform:uppercase;font-weight:600;color:var(--accent)}
+.gcard h4{font-size:18px;font-weight:650;margin:8px 0 8px;letter-spacing:-.2px;line-height:1.25}
+.gcard p{font-size:13.5px;color:var(--ink2);line-height:1.5;flex:1;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.gcard .gc-foot{display:flex;gap:8px;margin-top:12px}
+.gcard .gc-foot a,.gcard .gc-foot button{text-decoration:none;font-size:12.5px;font-weight:600;
+  color:var(--accent);background:var(--accent-soft);border:none;border-radius:999px;padding:6px 13px;cursor:pointer}
+.gcard .gc-foot .gc-open{color:var(--ink2);background:var(--bg2)}
+.gcar-next{position:absolute;top:calc(50% - 6px);right:6px;transform:translateY(-50%);
+  width:32px;height:32px;border-radius:50%;border:1px solid var(--line2);background:var(--card);
+  color:var(--ink2);font-size:19px;line-height:1;cursor:pointer;box-shadow:var(--shadow);
+  display:flex;align-items:center;justify-content:center;z-index:2}
+.gcar-eyebrow{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:2px}
 .inboxtile{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;cursor:pointer}
 
@@ -904,10 +935,12 @@ function glossSections(){
 function vGlossTab(){
   if(GLOSSSEC||glossQuery)return header("Glossary")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
   const secs=glossSections();
-  return header("Glossary")+`<div class="row" style="margin-bottom:8px">
-    <span class="dim" style="font-size:13px">${glossReadCount()} of ${DATA.glossary.length} read · quiz every 5</span>
-    <button class="btn small ghost" onclick="APP.addTermReq()">＋ term</button></div>
-  <input class="srch" type="text" placeholder="Search all ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
+  return header("Glossary")+`<div class="gloss-head">
+    <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
+    <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button></div>
+  <div class="dim" style="font-size:12.5px;margin-bottom:2px">${glossReadCount()} of ${DATA.glossary.length} read · quiz every 5</div>
+  <div class="gcar-eyebrow"><span class="eyebrow" style="margin:0">Discover</span><span class="dim" style="font-size:11.5px">swipe for more →</span></div>
+  ${glossCarousel()}
   <div class="mgrid">${secs.map(s=>{
     const terms=DATA.glossary.filter(g=>s.cats.includes(g.cat));
     if(!terms.length)return "";
@@ -928,7 +961,7 @@ function vGloss(){
   ${terms.slice(0,80).map(g=>{
     const read=(DB.glossRead||{})[g.id];
     return `<div class="glossitem"><div class="row" style="cursor:pointer" onclick="APP.glossOpen('${g.id}')">
-    <h4>${read?"✓ ":""}${esc(g.term)}</h4><span class="dim" style="font-size:12px">${GLOSSOPEN[g.id]?"▾":"▸"}</span></div>
+    <h4>${read?'<span class="gread">✓</span>':""}${esc(g.term)}</h4><span class="gcaret">${GLOSSOPEN[g.id]?"▾":"▸"}</span></div>
     ${GLOSSOPEN[g.id]?`${g.img?`<img src="${esc(g.img)}" alt="" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:8px 0">`:""}<p>${esc(g.def)}</p>
     <div class="btnrow" style="margin-top:8px">
       <button class="btn small ghost" onclick="APP.glossToCard('${g.id}')">→ review</button>
@@ -936,6 +969,48 @@ function vGloss(){
       ${g.link?`<a class="btn small ghost" style="text-decoration:none" href="${esc(g.link)}" target="_blank">🔗 learn more</a>`:""}</div>
     <span class="gcat">${esc(g.cat)} · verified ${esc(g.verified||"")}</span>`:""}</div>`;}).join("")}
   ${terms.length>80?`<p class="dim" style="margin-top:10px">Showing 80 of ${terms.length} — refine your search.</p>`:""}`;
+}
+
+/* ---------- Glossary discover carousel ---------- */
+let GCAR=null;
+function glossShuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+function defSnippet(def,max){
+  def=(def||"").replace(/\s+/g," ").trim();
+  if(def.length<=max)return def;
+  const cut=def.slice(0,max);
+  const stop=Math.max(cut.lastIndexOf(". "),cut.lastIndexOf("; "),cut.lastIndexOf("! "),cut.lastIndexOf("? "));
+  if(stop>max*0.45)return def.slice(0,stop+1).trim();
+  const sp=cut.lastIndexOf(" ");
+  return (sp>0?def.slice(0,sp):cut).trim()+"…";
+}
+function glossCardHTML(g){
+  if(!g)return "";
+  return `<div class="gcard">
+    <div class="gc-cat">${esc(g.cat||"Glossary")}</div>
+    <h4>${esc(g.term)}</h4>
+    <p>${esc(defSnippet(g.def,150))}</p>
+    <div class="gc-foot">
+      <button class="gc-open" onclick="APP.glossCardOpen('${g.id}')">Details</button>
+      ${g.link?`<a href="${esc(g.link)}" target="_blank" rel="noopener">🔗 learn more</a>`:""}
+    </div></div>`;
+}
+function glossCarousel(){
+  if(!DATA.glossary||!DATA.glossary.length)return "";
+  if(!GCAR)GCAR={order:glossShuffle(DATA.glossary.map(g=>g.id)),n:Math.min(20,DATA.glossary.length)};
+  const cards=GCAR.order.slice(0,GCAR.n).map(id=>glossCardHTML(DATA.glossary.find(g=>g.id===id))).join("");
+  return `<div class="gcar-wrap"><div class="gcar" id="gcar">${cards}</div>
+    <button class="gcar-next" onclick="APP.gcarNext()" aria-label="Next card">›</button></div>`;
+}
+function bindGlossCarousel(){
+  const el=document.getElementById("gcar");if(!el||!GCAR)return;
+  el.onscroll=()=>{
+    if(el.scrollLeft+el.clientWidth>=el.scrollWidth-el.clientWidth*1.5){
+      // keep it going forever: extend, re-shuffling a fresh pass when we run out
+      if(GCAR.n>=GCAR.order.length)GCAR.order=GCAR.order.concat(glossShuffle(DATA.glossary.map(g=>g.id)));
+      const next=GCAR.order.slice(GCAR.n,GCAR.n+20).map(id=>glossCardHTML(DATA.glossary.find(g=>g.id===id))).join("");
+      el.insertAdjacentHTML("beforeend",next);GCAR.n+=20;
+    }
+  };
 }
 
 /* ---------- Item detail with stage navigation ---------- */
@@ -1335,6 +1410,15 @@ const APP={
     closeSheet();toast("Graduated — run 🔬 Full process to generate "+laneName(lane)+" artifacts");render();},
   glossSec(id){GLOSSSEC=id;glossQuery="";nav("gloss");},
   glossBack(){GLOSSSEC=null;glossQuery="";nav("gloss");},
+  gcarNext(){const el=document.getElementById("gcar");if(!el)return;
+    const card=el.querySelector(".gcard");const step=card?card.offsetWidth+12:el.clientWidth*.86;
+    el.scrollBy({left:step,behavior:"smooth"});},
+  glossCardOpen(gid){const g=DATA.glossary.find(x=>x.id===gid);if(!g)return;
+    const sec=glossSections().find(s=>s.cats.includes(g.cat));
+    GLOSSSEC=sec?sec.id:null;glossQuery=sec?"":g.term;GLOSSOPEN[g.id]=true;
+    if(!(DB.glossRead||{})[gid]){DB.glossRead[gid]=Date.now();saveLocal();}
+    nav("gloss");
+    setTimeout(()=>{const n=document.querySelector(".glossitem h4");if(n)n.scrollIntoView({block:"center"});},60);},
   async glossGraduate(gid){
     const g=DATA.glossary.find(x=>x.id===gid);if(!g)return;
     try{
@@ -1399,26 +1483,36 @@ const APP={
     }
     render();},
   glossQuiz(){
-    const readIds=Object.entries(DB.glossRead||{}).sort((a,b)=>b[1]-a[1]).slice(0,5).map(x=>x[0]);
-    const terms=readIds.map(id=>DATA.glossary.find(g=>g.id===id)).filter(Boolean);
+    /* eligible = a clean, self-contained term worth quizzing on */
+    const ok=g=>{if(!g)return false;const t=g.term||"",d=(g.def||"").trim();
+      if(t.length>46||t.split(" ").length>7)return false;
+      if(d.length<24)return false;
+      if(/^(Source:|Recommended reading|Based on|Case study|Opinion:|Point \d)/i.test(d))return false;
+      return true;};
+    /* prefer the most-recently read, but only clean terms; top up from all read if needed */
+    const readSorted=Object.entries(DB.glossRead||{}).sort((a,b)=>b[1]-a[1]).map(x=>x[0]);
+    const seen=new Set();const terms=[];
+    for(const id of readSorted){const g=DATA.glossary.find(x=>x.id===id);if(ok(g)&&!seen.has(id)){seen.add(id);terms.push(g);}if(terms.length>=5)break;}
     if(terms.length<3)return;
-    const others=DATA.glossary.filter(g=>!readIds.includes(g.id));
+    const readIds=terms.map(g=>g.id);
+    const others=DATA.glossary.filter(g=>ok(g)&&!readIds.includes(g.id));
+    if(others.length<3)return;
     const qs=terms.map((g,i)=>{
       const kind=i%3;
       if(kind===0){ /* MCQ: def -> term */
-        const wrong=others.slice().sort(()=>Math.random()-.5).slice(0,3).map(o=>o.term);
-        const choices=[g.term,...wrong].sort(()=>Math.random()-.5);
-        return {kind:"mcq",q:"Which term matches: “"+g.def.slice(0,140)+(g.def.length>140?"…":"")+"”",choices,correct:choices.indexOf(g.term),term:g.term};
+        const wrong=glossShuffle(others).slice(0,3).map(o=>o.term);
+        const choices=glossShuffle([g.term,...wrong]);
+        return {kind:"mcq",q:"Which term matches this definition?\n“"+defSnippet(g.def,190)+"”",choices,correct:choices.indexOf(g.term),term:g.term};
       }
       if(kind===1){ /* T/F */
         const flip=Math.random()<.5;
         const shown=flip?(others[Math.floor(Math.random()*others.length)]||g):g;
-        return {kind:"tf",q:"True or false — “"+g.term+"”: "+shown.def.slice(0,140)+(shown.def.length>140?"…":""),answer:shown===g,term:g.term};
+        return {kind:"tf",q:"True or false — does this describe “"+g.term+"”?\n“"+defSnippet(shown.def,190)+"”",answer:shown===g,term:g.term};
       }
       /* fill in the blank */
       const words=g.term.split(" ");
       const blankTerm=words.length>1?words.map((w,j)=>j===0?w:"____").join(" "):"____";
-      return {kind:"fill",q:"Fill the blank: "+blankTerm+" — "+g.def.slice(0,140),answer:g.term,term:g.term};
+      return {kind:"fill",q:"Fill the blank: "+blankTerm+"\n“"+defSnippet(g.def,190)+"”",answer:g.term,term:g.term};
     });
     QZ={qs,i:0,score:0,done:false};
     APP.renderQuiz();},
@@ -1432,7 +1526,7 @@ const APP={
       <div class="btnrow"><button class="btn solid" onclick="APP.closeQuiz()">Done</button></div>`;
     }else{
       body=`<h3>Quick check ${z.i+1}/${z.qs.length}</h3>
-      <p style="font-size:15px;margin:12px 0">${esc(qq.q)}</p>`;
+      <p style="font-size:15px;margin:12px 0;line-height:1.55;white-space:pre-line">${esc(qq.q)}</p>`;
       if(ans!==undefined){
         const good=qq.kind==="mcq"?ans===qq.correct:qq.kind==="tf"?ans===qq.answer:String(ans).trim().toLowerCase()===qq.answer.toLowerCase();
         if(good)z.score++;
@@ -1850,6 +1944,7 @@ function render(){
   if(!setup){
     const rb=$("#revBadge"),n=reviewBadgeCount();
     if(rb){rb.style.display=n?"":"none";rb.textContent=n>99?"99+":n;}
+    if(VIEW.name==="gloss")bindGlossCarousel();
   }
 }
 
