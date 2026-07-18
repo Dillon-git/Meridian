@@ -848,11 +848,10 @@ function vNews(){
 /* ---------- Library (categories default) ---------- */
 let libTab="cats", libFilter=null, glossQuery="";
 function vLibrary(){
+  if(libTab==="gloss"){libTab="cats";}
   const tabs=`<div class="subtabs">
     <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Collections</button>
-    <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button>
-    <button class="${libTab==="gloss"?"active":""}" onclick="APP.lib('gloss')">Glossary</button></div>`;
-  if(libTab==="gloss")return header("Library")+tabs+vGloss();
+    <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button></div>`;
   const all=items();
   if(libTab==="lanes"&&!libFilter){
     return header("Library")+tabs+LANES.map(([id,name,desc])=>{
