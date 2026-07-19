@@ -1,11 +1,11 @@
 {
-  "name": "Meridian — AI PM Mastery",
-  "short_name": "Meridian",
+  "name": "QuantumLeap — AI PM Mastery",
+  "short_name": "QuantumLeap",
   "description": "Your private system for becoming a world-class AI product manager.",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#0b0b0d",
-  "theme_color": "#0b0b0d",
+  "background_color": "#1D4ED8",
+  "theme_color": "#1D4ED8",
   "icons": [
     {"src": "icon-180.png", "sizes": "180x180", "type": "image/png"},
     {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
