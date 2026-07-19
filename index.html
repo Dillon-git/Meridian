@@ -327,16 +327,41 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .trow.done .tt{color:var(--ink3)}
 .trow .tk{font-size:10.5px;color:var(--ink3);font-weight:700;white-space:nowrap}
 .favbtn{border:none;background:none;font-size:22px;cursor:pointer;color:var(--amber);padding:2px 6px;line-height:1}
+
+/* --- v24 UX release --- */
+nav button.fab{padding:0 6px}
+.fabbtn{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;
+  background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;font-size:26px;font-weight:600;line-height:1;
+  margin-top:-22px;box-shadow:0 6px 18px rgba(29,78,216,.35)}
+.itembar{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 74px);left:50%;transform:translateX(-50%);
+  display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:999px;
+  padding:7px 10px;box-shadow:0 8px 28px rgba(15,15,30,.16);z-index:40;white-space:nowrap}
+.itembar .btn{margin:0}
+.morelist .lrow .lt{font-size:15.5px}
+.srchhit{padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.srchhit h4{font-size:14.5px;font-weight:600;color:var(--ink)}
+.srchhit p{font-size:12.5px;color:var(--ink3);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.capstat{display:flex;align-items:center;gap:8px;padding:8px 2px;font-size:13.5px;color:var(--ink2);border-bottom:1px solid var(--line)}
+.capstat:last-child{border-bottom:none}
+.trend{display:flex;align-items:flex-end;gap:6px;height:64px;margin:8px 0 2px}
+.trend .tb{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px}
+.trend .tb i{display:block;width:100%;border-radius:4px 4px 0 0;background:var(--accent)}
+.trend .tb span{font-size:10.5px;color:var(--ink3)}
+/* touch targets + type */
+.trow b{padding:7px 11px;font-size:15px;line-height:1;border-radius:8px}
+.pchip .k,.trow .tk,.tphead .dim{font-size:12px}
+nav button{font-size:11.5px}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <nav id="nav" style="display:none"><div class="inner">
-  <button data-v="today"><span class="ico">◉</span>Plan</button>
-  <button data-v="news"><span class="ico">☰</span>News</button>
+  <button data-v="today"><span class="ico">◉<i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
   <button data-v="library"><span class="ico">▤</span>Learn</button>
+  <button data-v="inbox" class="fab" aria-label="Capture"><span class="fabbtn">＋</span></button>
   <button data-v="review"><span class="ico">◈<i class="navbadge" id="revBadge" style="display:none"></i></span>Review</button>
-  <button data-v="gloss"><span class="ico">▦</span>Glossary</button>
+  <button data-v="more"><span class="ico">≡</span>More</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -349,7 +374,7 @@ const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;"
 const DAY=86400000;
 const clamp=(x,lo,hi)=>Math.min(hi,Math.max(lo,x));
 const todayStr=(d=new Date())=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-const LANES=[["filter","Filter","Triage in \u226410 min"],["understand","Understand","Build the mental model"],["master","Master","Critique, connect, apply"]];
+const LANES=[["filter","Skim","Triage in \u226410 min"],["understand","Understand","Build the mental model"],["master","Master","Critique, connect, apply"]];
 const LANE_LEGACY={retrieve:"filter",gist:"filter",learn:"master",evaluate:"master",filter:"filter",understand:"understand",master:"master"};
 const laneRank=id=>LANES.findIndex(l=>l[0]===id);
 const LANE_ARTS={filter:["summary","facts"],understand:["note"],master:["lesson","cards","quiz","prompts","drills","memo"]};
@@ -361,7 +386,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -589,7 +614,7 @@ async function captureToInbox(name,content){
 }
 async function listInboxFiles(){
   try{const ls=await gh(`/repos/${repo()}/contents/_inbox`);
-    return ls.filter(f=>f.type==="file"&&f.name!=="README.md").map(f=>f.name);
+    return ls.filter(f=>f.name!=="README.md").map(f=>f.name+(f.type==="dir"?"/":""));
   }catch(e){return [];}
 }
 
@@ -724,6 +749,7 @@ function header(sub){
   const pend=DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]).length;
   return `<div class="brand"><h1 style="display:flex;align-items:center;gap:9px">${QL_LOGO} QuantumLeap</h1>
     <span style="display:flex;align-items:center;gap:8px">
+    <span class="inboxtile" onclick="APP.search()" title="Search everything">⌕</span>
     <span class="inboxtile" onclick="APP.go('inbox')" title="Inbox">▼${pend?" "+pend:""}</span>
     <span class="streakpill">🔥 ${DB.meta.streak||0}</span>
     <span class="dim" style="font-size:14px;cursor:pointer" onclick="APP.settings()"><span class="syncdot ${syncState}"></span>⚙</span></span></div>
@@ -763,34 +789,69 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   const pend=pendingProposals().length;
   const plan=coachPlan();
   const goals=(DB.goals||[]).filter(g=>!g.del);
-  return header("Study planner & tracker · "+fmtDate())+`
-  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}
-  <div class="card lux" style="margin-top:14px"><div class="ringwrap">${goalRing()}
+  return header("Your day · "+fmtDate())+`
+  <div class="card lux" style="margin-top:2px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
     <span class="tmrbox" id="tmr">--:--</span><br>
-    <span style="font-size:12.5px;color:var(--ink3)">counts while the app is open · ${due+fresh?due+fresh+" to recall":"reviews clear"}${lesson?" · 1 lesson":""}</span></div></div>
-    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">▶ Continue</button>
+    <span style="font-size:12.5px;color:var(--ink3)">${due+fresh?due+fresh+" to recall":"reviews clear"}${lesson?" · 1 lesson":""} · counts while open</span></div></div>
+    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1;font-size:16px;padding:13px" onclick="APP.startFlow()">▶ Continue</button>
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
   </div>
-  ${favSection()}
-  ${trackTeaser()}
-  <details class="prev" style="margin:0 0 12px"><summary>📊 Stats & progress</summary>${statsBody()}</details>
-  <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
-    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
-    <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
-    ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
-  </div>
+  ${newForYou()}
   ${pend?`<div class="card tap" onclick="APP.go('inbox')"><div class="row"><div><div class="eyebrow">Inbox</div>
     <h3>${pend} item${pend>1?"s":""} awaiting your decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
-  ${(()=>{const fr=items().filter(isFresh).slice(0,4);return fr.length?`<div class="card"><div class="eyebrow">Updated overnight</div>
-    ${fr.map(it=>`<div class="listitem" onclick="APP.item('${it.id}')" style="border:none;padding:8px 0"><h4>${esc(it.title)}<span class="dot"></span></h4></div>`).join("")}</div>`:"";})()}
+  ${trackTeaser()}
+  ${favSection()}
+  ${workContext()}
   ${ch?`<div class="card">
     <div class="eyebrow">Daily challenge</div>
     <div class="body" style="color:var(--ink);font-size:15px">${esc(ch.text)}</div>
     ${chResourceLink(ch)}
     <div class="btnrow">${chDone?`<span class="pill ok">Completed ✓</span>`:`<button class="btn small solid" onclick="APP.drill()">Answer the drill</button>
     <button class="btn small ghost" onclick="APP.challengeDone()">Did it elsewhere +20</button>`}</div>
-  </div>`:""}`;
+  </div>`:""}
+  ${newsDigest()}
+  <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
+    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
+    <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
+    ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
+  </div>
+  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}`;
+}
+function ago(ts){const m=Math.round((Date.now()-ts)/60000);return m<1?"just now":m<60?m+"m ago":Math.round(m/60)+"h ago";}
+function newSince(){
+  const seen=DB.lastSeen||0;
+  const fresh=items().filter(it=>!it.proposed&&it.updated&&Date.parse(it.updated)>seen);
+  const answered=items().filter(it=>it.artifacts&&it.artifacts.qa&&it.artifacts.qa.some(q=>{
+    const t=Date.parse(q.at||"")||0;return t>seen-DAY;}));
+  return {fresh:fresh.slice(0,6),answered:answered.filter(a=>!fresh.includes(a)).slice(0,4),
+    count:fresh.length+answered.filter(a=>!fresh.includes(a)).length};
+}
+function newForYou(){
+  const ns=newSince();
+  if(!ns.count)return "";
+  return `<div class="card"><div class="row"><div class="eyebrow">🔔 New for you</div>
+    <button class="btn small ghost" onclick="APP.seenAll()">Mark seen ✓</button></div>
+    ${ns.fresh.map(it=>`<div class="lrow"><span class="ldot" style="border-color:var(--accent)"></span>
+      <span class="lt" onclick="APP.item('${it.id}','today')">${esc(it.title)}</span><span class="lmeta" style="color:var(--accent)">new</span></div>`).join("")}
+    ${ns.answered.map(it=>`<div class="lrow"><span class="ldot" style="border-color:var(--green);background:var(--green)"></span>
+      <span class="lt" onclick="APP.item('${it.id}','today')">${esc(it.title)}</span><span class="lmeta">💬 answered</span></div>`).join("")}
+  </div>`;
+}
+function workContext(){
+  const ps=(DB.projects||[]).filter(p=>!p.del&&p.status!=="paused");
+  if(!ps.length)return "";
+  return `<details class="prev" style="margin:0 0 12px"><summary>💼 Work context (${ps.length})</summary>
+    <div style="padding:4px 2px 2px">${ps.map(p=>`<div class="lrow"><span class="ldot" style="border-color:${p.status==="active"?"var(--green)":"var(--amber)"}"></span>
+    <span class="lt" onclick="APP.go('project','${p.id}')">${esc(p.name)}</span>
+    <span class="lmeta" style="color:var(--ink3);font-weight:500;font-size:11.5px">${esc(p.status||"")}</span></div>`).join("")}</div></details>`;
+}
+function newsDigest(){
+  const acts=DB.newsActions||{};
+  const live=(DATA.news||[]).filter(n=>!acts[n.id]).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,3);
+  if(!live.length)return "";
+  return `<div class="card tap" onclick="APP.go('news')"><div class="row"><div class="eyebrow">📰 Briefing</div><span class="dim" style="font-size:12px">open →</span></div>
+    ${live.map(n=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:550;color:var(--ink)">${esc(n.title)}</div>`).join("")}</div>`;
 }
 function chResourceLink(ch){
   if(ch.resItemId){const it=DATA.items.find(x=>x.id===ch.resItemId);if(it)return `<div style="margin:6px 0 2px"><a href="javascript:void(0)" onclick="APP.item('${it.id}')" style="font-size:13px;color:var(--accent);font-weight:600">📖 Review: ${esc(it.title)}</a></div>`;}
@@ -799,8 +860,20 @@ function chResourceLink(ch){
 }
 
 /* ---------- Inbox (composer) ---------- */
-let INBOXFILES=null, CAPLANE="filter", CAPFILES=[], CAPWORK=false;
-const CAPLANES=[["filter","Filter (default)"],["understand","Understand"],["master","Master"]];
+let INBOXFILES=null, CAPLANE="filter", CAPFILES=[], CAPWORK=false, CAPMODE="fast";
+const CAPLANES=[["filter","Skim (default)"],["understand","Understand"],["master","Master"]];
+function capStatus(){
+  const caps=(DB.caps||[]).slice(-8).reverse();
+  if(!caps.length)return "";
+  return `<div class="card" style="margin-bottom:16px"><div class="row"><div class="eyebrow">Your captures</div>
+    <button class="btn small ghost" onclick="APP.refreshInbox()">↻ refresh</button></div>
+    ${caps.map(c=>{
+      if(c.filed)return `<div class="capstat"><span style="color:var(--green)">✓</span> ${esc(c.txt)} <span class="dim" style="margin-left:auto;font-size:11.5px">filed ${ago(c.filed)}</span></div>`;
+      const st=Date.now()-c.at<90000?"Queued":"Processing";
+      return `<div class="capstat"><span>${st==="Queued"?"◌":"⏳"}</span> ${esc(c.txt)} <span class="dim" style="margin-left:auto;font-size:11.5px">${st} · sent ${ago(c.at)}</span></div>`;
+    }).join("")}
+    <p class="dim" style="font-size:11.5px;margin-top:8px">Runs within ~15 min while your Mac has Claude open. Results appear under 🔔 New for you.</p></div>`;
+}
 function vInbox(){
   const pend=pendingProposals();
   let html=header("Inbox")+`
@@ -810,17 +883,17 @@ function vInbox(){
     ${CAPFILES.length?`<div class="filelist">${CAPFILES.map((f,i)=>`<span>${esc(f.name)}<b onclick="APP.removeFile(${i})">×</b></span>`).join("")}</div>`:""}
     <button class="btn ghost small" style="margin-bottom:10px" onclick="document.getElementById('capF').click()">📎 Attach files or photos (multiple)</button>
     <input type="file" id="capF" multiple accept="image/*,.pdf,.md,.txt,.csv,.docx,.pptx" style="display:none" onchange="APP.stageFiles(this)">
-    <div class="eyebrow">Processing depth</div>
+    <div class="eyebrow">How deep should it go?</div>
     <div class="chips capchips" style="margin-bottom:8px">${CAPLANES.map(([id,name])=>`<button class="chip ${CAPLANE===id?"active":""}" onclick="APP.capLane('${id}')">${name}</button>`).join("")}</div>
     <label style="display:flex;align-items:center;gap:8px;margin:2px 0 10px;font-size:13px;color:var(--ink2)"><input type="checkbox" ${CAPWORK?"checked":""} onchange="APP.capWork(this.checked)"> 🔒 Work-confidential — detail stays in the local work area; app gets a keyword stub</label>
     <input type="text" id="capI" placeholder="How should Claude process this? (optional)" value="${esc(CAPINSTR||"")}">
-    <button class="btn solid" style="width:100%;margin-top:6px" onclick="APP.saveCapture()">Send to inbox${CAPFILES.length?" ("+CAPFILES.length+" files)":""}</button>
+    <div class="eyebrow">Processing</div>
+    <div class="chips capchips" style="margin-bottom:8px">
+      <button class="chip ${CAPMODE==="fast"?"active":""}" onclick="APP.capMode('fast')">⚡ Just file it</button>
+      <button class="chip ${CAPMODE==="full"?"active":""}" onclick="APP.capMode('full')">🔬 Research it deeply</button></div>
+    <button class="btn solid" style="width:100%;margin-top:6px" onclick="APP.saveCapture()">Capture — processing starts automatically${CAPFILES.length?" ("+CAPFILES.length+" files)":""}</button>
   </div>
-  <div class="btnrow" style="margin:0 0 16px">
-    <button class="btn small" onclick="APP.processNow('fast')">⚡ Fast process</button>
-    <button class="btn small" onclick="APP.processNow('full')">🔬 Full process</button>
-    <button class="btn small ghost" onclick="APP.refreshInbox()">Refresh</button>
-  </div>`;
+  ${capStatus()}`;
   if(pend.length){
     html+=`<div class="eyebrow">Awaiting your decision</div>`+pend.map(it=>{
       const opts=(it.suggestions||[]).map((s,i)=>`<button class="btn small ghost" onclick="APP.suggest('${it.id}',${i})">${esc(s.label)}</button>`).join("");
@@ -869,14 +942,17 @@ function vNews(){
   return html;
 }
 
-/* ---------- Library (categories default) ---------- */
+/* ---------- Learn (tracks default) ---------- */
 let libTab="tracks", libFilter=null, glossQuery="";
+function learnTabs(cur){
+  return `<div class="subtabs">
+    <button class="${cur==="tracks"?"active":""}" onclick="APP.lib('tracks')">Tracks</button>
+    <button class="${cur==="cats"?"active":""}" onclick="APP.lib('cats')">Library</button>
+    <button class="${cur==="gloss"?"active":""}" onclick="APP.go('gloss')">Glossary</button></div>`;
+}
 function vLibrary(){
   if(libTab==="gloss"){libTab="cats";}
-  const tabs=`<div class="subtabs">
-    <button class="${libTab==="tracks"?"active":""}" onclick="APP.lib('tracks')">Tracks</button>
-    <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Collections</button>
-    <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button></div>`;
+  const tabs=learnTabs(libTab==="tracks"?"tracks":"cats");
   const all=items();
   if(libTab==="tracks"){
     return header("Learn")+tabs+planSection()+
@@ -955,9 +1031,9 @@ function glossSections(){
    {id:"gs-sys",name:"System Design & Engineering",glyph:"⬡",bg:"var(--bg2)",fg:"var(--ink2)",cats:["System Design"]}];
 }
 function vGlossTab(){
-  if(GLOSSSEC||glossQuery)return header("Glossary")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
+  if(GLOSSSEC||glossQuery)return header("Learn")+learnTabs("gloss")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
   const secs=glossSections();
-  return header("Glossary")+`<div class="gloss-head">
+  return header("Learn")+learnTabs("gloss")+`<div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button></div>
   ${glossCarousel()}
@@ -1069,10 +1145,7 @@ function vItem(){
     ${trailingDg?`<div class="card lux" style="padding:20px 14px 14px"><div class="eyebrow" style="text-align:center">${esc(trailingDg.cap||"How it flows")}</div>${dgSVG(trailingDg)}</div>`:""}
     ${les.ex?`<div class="takeaways" style="border-color:var(--accent-dim)"><div class="eyebrow" style="color:var(--accent)">In practice — auto finance</div><div class="prose" style="font-size:14.5px">${md(les.ex)}</div></div>`:""}
     <div class="takeaways"><div class="eyebrow">Keep these</div><ul>${(les.takeaways||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
-    <div class="btnrow">
-    ${DB.done[it.id]?`<span class="pill ok">Completed ✓</span>`:
-      `<button class="btn solid" onclick="APP.lessonDone('${it.id}')">Complete — unlock ${cards.length} cards · +15</button>`}
-    <button class="btn small ghost" onclick="APP.editArtifact('${it.id}','lesson')">Edit lesson</button></div>`;
+    <div class="btnrow"><button class="btn small ghost" onclick="APP.editArtifact('${it.id}','lesson')">Edit lesson</button></div>`;
   }
   const mdKeys=[["summary","Filter summary"],["facts","Fact card"],["note","Structured note"],["memo","Synthesis memo"]];
   for(const [key,label] of mdKeys){
@@ -1082,8 +1155,8 @@ function vItem(){
     <button class="btn small ghost" style="margin-top:8px" onclick="APP.editArtifact('${it.id}','${key}')">Edit</button></div></div>`;
   }
   if(cards.length){
-    html+=`<div class="artif"><h5>Flashcards (${cards.length})</h5>`+cards.map((c,i)=>
-      `<div class="listitem" onclick="APP.editCard('${it.id}',${i})"><h4>${esc(c.q)}</h4><p>${esc(c.a)}</p></div>`).join("")+`</div>`;
+    html+=`<details class="prev artif"><summary>Flashcards (${cards.length})</summary>`+cards.map((c,i)=>
+      `<div class="listitem" onclick="APP.editCard('${it.id}',${i})"><h4>${esc(c.q)}</h4><p>${esc(c.a)}</p></div>`).join("")+`</details>`;
   }
   const need=(LANE_ARTS[it.lane]||[])[0];
   if(viewLane===it.lane&&need&&!artifact(it,need))html+=`<div class="histbox">No ${laneName(it.lane)} artifacts yet — run 🔬 Full process from the Inbox to generate them.</div>`;
@@ -1093,7 +1166,12 @@ function vItem(){
   if(it.artifacts&&it.artifacts.qa&&it.artifacts.qa.length){
     html+=`<div class="artif"><h5>Your questions, answered</h5>`+it.artifacts.qa.map(q=>`<div class="card"><p style="font-size:14px;font-weight:600;color:var(--ink)">Q: ${esc(q.q)}</p><div class="prose" style="font-size:14px;margin-top:6px">${md(q.a)}</div><p class="dim" style="font-size:11.5px;margin-top:6px">${esc(q.at||"")}</p></div>`).join("")+`</div>`;
   }
-  html+=`<div class="btnrow" style="margin-top:14px"><button class="btn small ghost" onclick="APP.askClaude('item','${it.id}',this.dataset.t)" data-t="${esc(it.title)}">💬 Ask Claude about this</button></div>`;
+  const hasLesson=!!les;
+  html+=`<div class="itembar">
+    ${hasLesson?(DB.done[it.id]?`<span class="pill ok" style="margin:0">Done ✓</span>`:`<button class="btn solid small" onclick="APP.lessonDone('${it.id}')">✓ Complete +15</button>`):""}
+    <button class="btn small ghost" style="font-size:17px;padding:6px 10px" onclick="APP.favToggle('${it.id}')">${(DB.favs||{})[it.id]?"★":"☆"}</button>
+    <button class="btn small ghost" onclick="APP.askClaude('item','${it.id}',this.dataset.t)" data-t="${esc(it.title)}">💬 Ask</button>
+  </div><div style="height:56px"></div>`;
   if(it.note_path)html+=`<p style="margin-top:14px;font-size:13.5px"><a style="color:var(--accent)" href="https://github.com/${repo()}/blob/main/${esc(it.note_path)}" target="_blank">Open deep note in vault →</a></p>`;
   return html+`<div style="height:30px"></div></div>`;
 }
@@ -1101,15 +1179,17 @@ function vItem(){
 /* ---------- Review ---------- */
 let SESSION=null;
 function reviewMode(){return localStorage.getItem("meridian.mode")||"flip";}
-let REVTAB="session";
+let REVTAB="notes";
 function vReview(){
   if(REVTAB!=="session"){
     const tabs=`<div class="subtabs">
-      <button onclick="APP.rev('session')">Session</button>
       <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button>
       <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button></div>`;
     deskTab=REVTAB;
-    return header("Review")+tabs+vDesk();
+    const due=dueUnits().length;
+    const banner=due?`<div class="card tap" style="margin-bottom:12px" onclick="APP.startFlow()"><div class="row">
+      <h3 style="font-size:15px">▶ ${due} to recall — start your session</h3><span class="badge">${due}</span></div></div>`:"";
+    return header("Review")+tabs+banner+vDesk();
   }
   if(!SESSION){
     const due=interleave(dueUnits());
@@ -1117,11 +1197,7 @@ function vReview(){
     const q=[...due,...fresh];
     if(!q.length){
       const locked=allUnits().length-unlockedUnits().length;
-      return header("Review")+`<div class="subtabs">
-      <button class="active" onclick="APP.rev('session')">Session</button>
-      <button onclick="APP.rev('notes')">Notes</button>
-      <button onclick="APP.rev('projects')">Projects</button></div>
-      <div class="empty"><div class="glyph">◈</div>
+      return header("Review")+`<div class="empty"><div class="glyph">◈</div>
       <h3 style="margin-bottom:6px">All clear</h3>
       <p style="font-size:14px">Nothing due right now.${locked?"<br>Complete lessons to unlock "+locked+" more.":""}</p>
       <div style="margin-top:18px">${FLOW&&nextLessonItem()?`<button class="btn solid" onclick="APP.item('${nextLessonItem().id}')">Next: today's lesson →</button>`:`<button class="btn" onclick="APP.go('library')">Open library</button>`}</div></div>`;
@@ -1130,7 +1206,7 @@ function vReview(){
   }
   const s=SESSION;
   if(s.i>=s.q.length){
-    const n=s.doneCount;SESSION=null;
+    const n=s.doneCount;SESSION=null;REVTAB="notes";
     const l=nextLessonItem();
     return header("Review")+`<div class="empty"><div class="glyph">✦</div>
       <h3 style="margin-bottom:6px">Session complete</h3>
@@ -1284,9 +1360,13 @@ function planSection(){
     const st=planStats(pl);
     const open=!!PLANOPEN[pl.id];
     if(!open){
-      html+=`<button class="pchip" style="display:flex;width:100%;justify-content:space-between;align-items:center;margin-bottom:10px;padding:10px 14px" onclick="APP.planToggle('${pl.id}')">
-        <span>📚 ${esc(pl.title)} <span class="dim" style="font-size:12px;font-weight:500">· ${st.done}/${st.total} · ${st.pct}%</span></span>
-        <span style="color:var(--accent);font-weight:700">▸</span></button>`;
+      const nxc=nextChips(pl,1)[0];
+      html+=`<div class="pchip" style="display:block;width:100%;margin-bottom:10px;padding:10px 14px;cursor:default">
+        <div class="row" style="cursor:pointer" onclick="APP.planToggle('${pl.id}')">
+          <span>📚 ${esc(pl.title)} <span class="dim" style="font-size:12px;font-weight:500">· ${st.pct}%</span></span>
+          <span style="color:var(--accent);font-weight:700">▸</span></div>
+        ${nxc?`<div style="margin-top:7px"><button class="btn small ghost" style="font-size:12.5px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t)}</button></div>`:`<div class="dim" style="font-size:12px;margin-top:6px">Complete ✓</div>`}
+      </div>`;
       continue;
     }
     const FILTERS=[["all","All"],["lesson","Lessons"],["read","Reading"],["video","Videos"],["practice","Practice"]];
@@ -1427,14 +1507,16 @@ function statsBody(){
 }
 
 function vSetup(){
-  return `<div class="setup-logo"><div class="ring">◆</div><h1>MERIDIAN</h1><p>Learning System</p></div>
-  <div class="card lux"><h3 style="margin-bottom:10px">Connect your private repo</h3>
-  <div class="body" style="margin-bottom:12px">All content and progress live in your private GitHub repository. Nothing personal is stored in this public app.</div>
-  <label class="f">GitHub token (repo access)</label>
-  <input type="password" id="tok" placeholder="github_pat_… or ghp_…" autocomplete="off">
-  <label class="f">Repository</label>
-  <input type="text" id="repoIn" placeholder="owner/repo — your private vault repository">
-  <div class="btnrow"><button class="btn solid" onclick="APP.connect()">Connect &amp; begin</button></div></div>`;
+  return `<div class="setup-logo" style="text-align:center;padding-top:40px"><div style="display:flex;justify-content:center;margin-bottom:10px;transform:scale(2.2);transform-origin:center">${QL_LOGO}</div>
+  <h1 style="letter-spacing:2px;margin-top:16px">QUANTUMLEAP</h1><p class="dim">Your private learning system</p></div>
+  <div class="card lux"><h3 style="margin-bottom:10px">Connect your vault</h3>
+  <div class="body" style="margin-bottom:12px">This page is an empty shell on purpose — <strong>everything you learn lives in your own private GitHub repository</strong>, readable only with your token. Connect once per device; your streak, reviews, and edits sync everywhere.</div>
+  <label class="f">GitHub token (fine-grained, repo access)</label>
+  <input type="password" id="tok" placeholder="github_pat_…" autocomplete="off">
+  <label class="f">Vault repository</label>
+  <input type="text" id="repoIn" placeholder="owner/repo — your private vault">
+  <div class="btnrow"><button class="btn solid" style="width:100%" onclick="APP.connect()">Connect &amp; load my vault</button></div>
+  <p class="dim" style="font-size:12px;margin-top:10px">I'll verify the token against your repo before saving. Nothing is sent anywhere except GitHub.</p></div>`;
 }
 </script>
 <script>
@@ -1448,11 +1530,12 @@ function setItemState(id,patch){
 }
 const APP={
   go(name,p){if(name==="review")SESSION=null;if(name==="today")FLOW=false;if(name==="library")libFilter=null;nav(name,p);},
-  startFlow(){FLOW=true;SESSION=null;nav("review");},
+  startFlow(){FLOW=true;SESSION=null;REVTAB="session";nav("review");},
   lib(t){libTab=t;libFilter=null;nav("library");},
   libFilter(id){libFilter=id;nav("library");},
   desk(t){deskTab=t;REVTAB=t;nav("review");},
   rev(t){REVTAB=t;if(t==="session")SESSION=null;nav("review");},
+  more(){nav("more");},
   item(id,from){VIEW={name:"item",p:id,from:from||null};render();window.scrollTo(0,0);},
   stageView(id,lane){STAGEVIEW[id]=lane;render();},
   graduateTo(id,lane){
@@ -1625,8 +1708,47 @@ const APP={
       closeSheet();toast("Requested — added after dedupe check");
     }catch(e){toast("Couldn't reach GitHub");}},
   refreshInbox(silent){
-    listInboxFiles().then(f=>{INBOXFILES=f;if(VIEW.name==="inbox")render();});
+    listInboxFiles().then(f=>{INBOXFILES=f;
+      const names=new Set(f.map(x=>x.replace(/\/$/,"")));
+      let chg=false;
+      for(const c of (DB.caps||[])){if(!c.filed&&!names.has(c.dir)){c.filed=Date.now();chg=true;}}
+      if(chg)saveLocal();
+      if(VIEW.name==="inbox")render();});
     if(!silent)toast("Refreshing…");},
+  capMode(m){APP.snapshotCap();CAPMODE=m;render();},
+  search(){openSheet(`<h3>Search everything</h3>
+    <input type="text" id="gq" placeholder="Lessons, glossary, tracks, projects, news…" autocomplete="off" oninput="APP.gsearch(this.value)" style="margin-bottom:6px">
+    <div id="gres" class="dim" style="font-size:13px">Type to search 145 lessons, 259 terms, tracks, projects, and briefings.</div>`);
+    setTimeout(()=>{const e=$("#gq");if(e)e.focus();},50);},
+  gsearch(q){
+    const box=$("#gres");if(!box)return;
+    q=(q||"").trim().toLowerCase();
+    if(q.length<2){box.innerHTML="";return;}
+    const hit=(t)=>String(t||"").toLowerCase().includes(q);
+    const out=[];
+    const its=items().filter(it=>hit(it.title)||hit(it.summary)||hit((artifact(it,"lesson")||{}).body)).slice(0,5);
+    if(its.length)out.push(`<div class="eyebrow" style="margin-top:8px">Lessons & items</div>`+its.map(it=>
+      `<div class="srchhit" onclick="APP.closeSheet();APP.item('${it.id}')"><h4>${esc(it.title)}</h4><p>${esc(laneName(LANE_LEGACY[it.lane]||it.lane))} · ${(it.cats||[]).map(c=>esc(catOf(c).name)).join(", ")}</p></div>`).join(""));
+    const gs=(DATA.glossary||[]).filter(t=>hit(t.term)||hit(t.def)).slice(0,5);
+    if(gs.length)out.push(`<div class="eyebrow" style="margin-top:8px">Glossary</div>`+gs.map(t=>
+      `<div class="srchhit" onclick="APP.closeSheet();glossQuery='${esc(t.term).replace(/'/g,"")}';APP.go('gloss')"><h4>${esc(t.term)}</h4><p>${esc(t.def.slice(0,90))}</p></div>`).join(""));
+    const pls=(DATA.studyPlans||[]).filter(pl=>hit(pl.title)||pl.phases.some(ph=>ph.chips.some(c=>hit(c.t)))).slice(0,4);
+    if(pls.length)out.push(`<div class="eyebrow" style="margin-top:8px">Tracks</div>`+pls.map(pl=>
+      `<div class="srchhit" onclick="APP.closeSheet();PLANOPEN['${pl.id}']=1;APP.lib('tracks')"><h4>📚 ${esc(pl.title)}</h4><p>${planStats(effPlan(pl)).pct}% complete</p></div>`).join(""));
+    const ps=(DB.projects||[]).filter(p=>!p.del&&(hit(p.name)||hit(p.summary))).slice(0,4);
+    if(ps.length)out.push(`<div class="eyebrow" style="margin-top:8px">Projects</div>`+ps.map(p=>
+      `<div class="srchhit" onclick="APP.closeSheet();APP.go('project','${p.id}')"><h4>💼 ${esc(p.name)}</h4><p>${esc(p.summary||"")}</p></div>`).join(""));
+    const nws=(DATA.news||[]).filter(n=>hit(n.title)||hit(n.body)).slice(0,3);
+    if(nws.length)out.push(`<div class="eyebrow" style="margin-top:8px">News</div>`+nws.map(n=>
+      `<div class="srchhit" onclick="APP.closeSheet();APP.go('news')"><h4>${esc(n.title)}</h4><p>${esc(n.date||"")}</p></div>`).join(""));
+    box.innerHTML=out.join("")||`<p class="dim" style="margin-top:8px">No matches for “${esc(q)}”.</p>`;},
+  dataMap(){openSheet(`<h3>🔒 Where your data lives</h3>
+    <div class="prose" style="font-size:14px">
+    <p><strong>This app (public)</strong> — an empty shell on GitHub Pages. Zero content, zero personal data. Anyone can see the code; nobody can see your stuff.</p>
+    <p><strong>Your private vault (GitHub)</strong> — all lessons, glossary, news, and your learning state. Only your token can read it. Syncs across your devices.</p>
+    <p><strong>Local work area (Mac only)</strong> — confidential work material never leaves your computer; the app only ever gets keyword stubs.</p>
+    <p><strong>This device</strong> — a local cache + your token. “Erase app data” in Settings clears only this device; the vault restores everything.</p></div>`);},
+  seenAll(){DB.lastSeen=Date.now();saveLocal();render();},
   capLane(id){APP.snapshotCap();CAPLANE=id;render();},
   snapshotCap(){const b=$("#capB"),i=$("#capI");if(b)CAPNOTE=b.value;if(i)CAPINSTR=i.value;},
   stageFiles(inp){
@@ -1652,8 +1774,12 @@ const APP={
       for(const f of CAPFILES){
         await gh(`/repos/${repo()}/contents/_inbox/${dir}/${f.name}`,{method:"PUT",body:JSON.stringify({message:"capture attachment",content:f.b64})});
       }
-      CAPNOTE="";CAPINSTR="";CAPFILES=[];CAPLANE="filter";CAPWORK=false;INBOXFILES=null;
-      toast("Captured ✓ — tap ⚡ or 🔬 when ready");render();
+      DB.caps=(DB.caps||[]).slice(-19);
+      DB.caps.push({dir,at:Date.now(),mode:CAPMODE,txt:(CAPNOTE.trim()||CAPFILES.map(f=>f.name).join(", ")||"capture").slice(0,48)});
+      saveLocal();
+      try{await captureToInbox(".process-request","mode: "+CAPMODE+"\nrequested: "+new Date().toISOString()+"\n");}catch(e){}
+      CAPNOTE="";CAPINSTR="";CAPFILES=[];CAPLANE="filter";CAPWORK=false;CAPMODE="fast";INBOXFILES=null;
+      toast("Captured ✓ — processing requested");render();
     }catch(e){toast("Upload failed — try again");}},
   async processNow(mode){
     try{
@@ -1995,6 +2121,42 @@ const APP={
 };
 window.APP=APP;
 
+function vMore(){
+  const acts=DB.newsActions||{};
+  const unread=(DATA.news||[]).filter(n=>!acts[n.id]).length;
+  const row=(ico,label,fn,meta)=>`<div class="lrow" style="padding:13px 2px"><span style="font-size:18px;width:26px;text-align:center">${ico}</span>
+    <span class="lt" onclick="${fn}">${label}</span>${meta?`<span class="lmeta" style="color:var(--accent)">${meta}</span>`:""}</div>`;
+  return header("More")+`<div class="morelist card" style="padding:4px 14px">
+    ${row("📰","News briefings","APP.go('news')",unread?unread+" new":"")}
+    ${row("📊","Stats & progress","APP.go('stats')","")}
+    ${row("📖","How this system works","APP.guide()","")}
+    ${row("🎯","Goals","APP.goalSheet()","")}
+    ${row("🔒","Where my data lives","APP.dataMap()","")}
+    ${row("⚙","Settings","APP.settings()","")}
+  </div>`;
+}
+function retentionTrend(){
+  const gl=DB.meta.gradelog||{};
+  const weeks=[...Array(6)].map((_,i)=>{
+    let n=0,a=0;
+    for(let dY=0;dY<7;dY++){const k=todayStr(new Date(Date.now()-((5-i)*7+dY)*DAY));if(gl[k]){n+=gl[k].n;a+=gl[k].a;}}
+    return {r:n?Math.round((1-a/n)*100):null,n};
+  });
+  if(!weeks.some(w=>w.n))return "";
+  return `<div class="card"><div class="eyebrow">Retention — last 6 weeks</div>
+    <div class="trend">${weeks.map((w,i)=>`<div class="tb"><i style="height:${w.r==null?2:Math.max(4,w.r*0.6)}px;${w.r==null?"background:var(--line)":w.r<70?"background:var(--red)":w.r<85?"background:var(--amber)":""}"></i><span>${w.r==null?"–":w.r}</span></div>`).join("")}</div></div>`;
+}
+function trackPace(){
+  const pls=(DATA.studyPlans||[]).map(effPlan).map(pl=>({pl,st:planStats(pl)})).filter(x=>x.st.done>0&&x.st.pct<100);
+  if(!pls.length)return "";
+  return `<div class="card"><div class="eyebrow">Track progress</div>
+    ${pls.map(x=>`<div style="margin-top:8px"><div class="row"><span style="font-size:13.5px;font-weight:600">${esc(x.pl.title)}</span><span class="dim" style="font-size:12px">${x.st.done}/${x.st.total}</span></div>
+    <div class="pbar" style="margin:4px 0 2px"><i style="width:${x.st.pct}%"></i></div></div>`).join("")}</div>`;
+}
+function vStats(){
+  return header("Stats & progress")+`<button class="back" onclick="APP.go('more')">← More</button>`
+    +retentionTrend()+trackPace()+statsBody();
+}
 /* ---------- router ---------- */
 function render(){
   const setup=!localStorage.getItem("meridian.setup");
@@ -2011,21 +2173,31 @@ function render(){
     case "note":html=vNote();break;
     case "project":html=vProject();break;
     case "gloss":html=vGlossTab();break;
+    case "more":html=vMore();break;
+    case "stats":html=vStats();break;
     default:html=vToday();
   }
   $("#app").innerHTML=html;
   document.querySelectorAll("nav button").forEach(b=>{
-    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
+    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||(VIEW.name==="gloss"&&b.dataset.v==="library")||((VIEW.name==="news"||VIEW.name==="stats")&&b.dataset.v==="more")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
     b.onclick=()=>APP.go(b.dataset.v);
   });
   if(!setup){
     const rb=$("#revBadge"),n=reviewBadgeCount();
     if(rb){rb.style.display=n?"":"none";rb.textContent=n>99?"99+":n;}
+    const nb=$("#newBadge"),nn=newSince().count;
+    if(nb){nb.style.display=nn&&VIEW.name!=="today"?"":"none";nb.textContent=nn>9?"9+":nn;}
     if(VIEW.name==="gloss")bindGlossCarousel();
   }
 }
 
 /* ---------- boot ---------- */
+try{const sp=new URLSearchParams(location.search);
+  if(sp.get("share_text")||sp.get("share_url")||sp.get("share_title")){
+    CAPNOTE=[sp.get("share_title"),sp.get("share_text"),sp.get("share_url")].filter(Boolean).join("\n");
+    history.replaceState(null,"",location.pathname);
+    if(localStorage.getItem("meridian.setup"))VIEW={name:"inbox",p:null};
+  }}catch(e){}
 render();
 startTicker();
 if(token()){Promise.all([fetchData(),pull()]).then(render);}
