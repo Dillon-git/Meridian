@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<title>Meridian — AI PM Mastery</title>
+<title>QuantumLeap — AI PM Mastery</title>
 <meta name="description" content="Your private system for becoming a world-class AI product manager.">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Meridian">
+<meta name="apple-mobile-web-app-title" content="QuantumLeap">
 <meta name="theme-color" content="#FAF9F5" id="themeColor">
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-180.png">
@@ -306,6 +306,27 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .artif{margin-top:14px}
 .artif h5{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--ink3);margin-bottom:6px;font-weight:600}
 
+/* --- QuantumLeap: dot-tree + light rows + favorites --- */
+.lrow{display:flex;align-items:center;gap:10px;padding:9px 2px;border-bottom:1px solid var(--line);cursor:pointer}
+.lrow:last-child{border-bottom:none}
+.ldot{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink3);background:var(--card);flex:none}
+.lrow .lt{font-size:14.5px;font-weight:600;color:var(--ink);flex:1;line-height:1.35}
+.lrow .lmeta{color:var(--green);font-size:12.5px;font-weight:700}
+.tphase{margin-bottom:2px}
+.tphead{display:flex;align-items:center;gap:10px;cursor:pointer;padding:7px 0}
+.tphead .pdot{width:12px;height:12px;border-radius:50%;border:2.5px solid var(--accent);background:var(--card);flex:none}
+.tphead .pdot.full{background:var(--accent)}
+.tphead h3{font-size:14.5px;flex:1;margin:0}
+.tbody{margin-left:5px;border-left:2px solid var(--line);padding-left:16px}
+.trow{display:flex;align-items:center;gap:9px;padding:6.5px 0;cursor:pointer;position:relative}
+.trow:before{content:"";position:absolute;left:-16px;top:50%;width:10px;height:2px;background:var(--line)}
+.tdot{width:9px;height:9px;border-radius:50%;border:2px solid var(--ink3);background:var(--card);flex:none}
+.trow.done .tdot{border-color:var(--green);background:var(--green)}
+.trow.next .tdot{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.trow .tt{font-size:13.8px;color:var(--ink);font-weight:550;flex:1;line-height:1.35}
+.trow.done .tt{color:var(--ink3)}
+.trow .tk{font-size:10.5px;color:var(--ink3);font-weight:700;white-space:nowrap}
+.favbtn{border:none;background:none;font-size:22px;cursor:pointer;color:var(--amber);padding:2px 6px;line-height:1}
 </style>
 </head>
 <body>
@@ -313,14 +334,14 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 <nav id="nav" style="display:none"><div class="inner">
   <button data-v="today"><span class="ico">◉</span>Plan</button>
   <button data-v="news"><span class="ico">☰</span>News</button>
-  <button data-v="library"><span class="ico">▤</span>Library</button>
+  <button data-v="library"><span class="ico">▤</span>Learn</button>
   <button data-v="review"><span class="ico">◈<i class="navbadge" id="revBadge" style="display:none"></i></span>Review</button>
   <button data-v="gloss"><span class="ico">▦</span>Glossary</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
-/* ===================== MERIDIAN APP v3 ===================== */
+/* ===================== QUANTUMLEAP APP v5 (formerly Meridian) ===================== */
 /* Repo-backed lanes architecture. Content + state live in a private GitHub repo. */
 "use strict";
 const $=s=>document.querySelector(s);
@@ -340,7 +361,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -698,9 +719,10 @@ function resolveUnit(u){
 </script><script>
 "use strict";
 /* ===================== VIEWS v4 ===================== */
+const QL_LOGO=`<svg viewBox="0 0 64 64" width="30" height="30" style="display:block" aria-label="QuantumLeap"><defs><linearGradient id="qlg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3B82F6"/><stop offset="1" stop-color="#1D4ED8"/></linearGradient></defs><circle cx="32" cy="32" r="30" fill="url(#qlg)"/><path fill="#fff" d="M19 53 C17.5 42 20 31 28.5 24.5 L27 16 L32 21 L35.5 12.5 L38.5 20 C44 21 49.5 25 51.5 30.5 L50 34.5 C46.5 35.5 43.5 34 41.5 31.5 C42.5 36.5 40.5 40 36.5 41.5 C40 45 42 48.5 42.5 53 Z"/><circle cx="39" cy="26.5" r="2" fill="#1D4ED8"/></svg>`;
 function header(sub){
   const pend=DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]).length;
-  return `<div class="brand"><h1><span class="mark">◆</span> Meridian</h1>
+  return `<div class="brand"><h1 style="display:flex;align-items:center;gap:9px">${QL_LOGO} QuantumLeap</h1>
     <span style="display:flex;align-items:center;gap:8px">
     <span class="inboxtile" onclick="APP.go('inbox')" title="Inbox">▼${pend?" "+pend:""}</span>
     <span class="streakpill">🔥 ${DB.meta.streak||0}</span>
@@ -750,7 +772,8 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
     <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1" onclick="APP.startFlow()">▶ Continue</button>
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
   </div>
-  ${planSection()}
+  ${favSection()}
+  ${trackTeaser()}
   <details class="prev" style="margin:0 0 12px"><summary>📊 Stats & progress</summary>${statsBody()}</details>
   <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
     <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
@@ -776,7 +799,7 @@ function chResourceLink(ch){
 }
 
 /* ---------- Inbox (composer) ---------- */
-let INBOXFILES=null, CAPLANE="filter", CAPFILES=[];
+let INBOXFILES=null, CAPLANE="filter", CAPFILES=[], CAPWORK=false;
 const CAPLANES=[["filter","Filter (default)"],["understand","Understand"],["master","Master"]];
 function vInbox(){
   const pend=pendingProposals();
@@ -789,6 +812,7 @@ function vInbox(){
     <input type="file" id="capF" multiple accept="image/*,.pdf,.md,.txt,.csv,.docx,.pptx" style="display:none" onchange="APP.stageFiles(this)">
     <div class="eyebrow">Processing depth</div>
     <div class="chips capchips" style="margin-bottom:8px">${CAPLANES.map(([id,name])=>`<button class="chip ${CAPLANE===id?"active":""}" onclick="APP.capLane('${id}')">${name}</button>`).join("")}</div>
+    <label style="display:flex;align-items:center;gap:8px;margin:2px 0 10px;font-size:13px;color:var(--ink2)"><input type="checkbox" ${CAPWORK?"checked":""} onchange="APP.capWork(this.checked)"> 🔒 Work-confidential — detail stays in the local work area; app gets a keyword stub</label>
     <input type="text" id="capI" placeholder="How should Claude process this? (optional)" value="${esc(CAPINSTR||"")}">
     <button class="btn solid" style="width:100%;margin-top:6px" onclick="APP.saveCapture()">Send to inbox${CAPFILES.length?" ("+CAPFILES.length+" files)":""}</button>
   </div>
@@ -846,15 +870,20 @@ function vNews(){
 }
 
 /* ---------- Library (categories default) ---------- */
-let libTab="cats", libFilter=null, glossQuery="";
+let libTab="tracks", libFilter=null, glossQuery="";
 function vLibrary(){
   if(libTab==="gloss"){libTab="cats";}
   const tabs=`<div class="subtabs">
+    <button class="${libTab==="tracks"?"active":""}" onclick="APP.lib('tracks')">Tracks</button>
     <button class="${libTab==="cats"?"active":""}" onclick="APP.lib('cats')">Collections</button>
     <button class="${libTab==="lanes"?"active":""}" onclick="APP.lib('lanes')">Lanes</button></div>`;
   const all=items();
+  if(libTab==="tracks"){
+    return header("Learn")+tabs+planSection()+
+    `<button class="btn ghost" style="width:100%;margin:4px 0 20px" onclick="APP.newTrack()">＋ New track — ask Claude to build one</button>`;
+  }
   if(libTab==="lanes"&&!libFilter){
-    return header("Library")+tabs+LANES.map(([id,name,desc])=>{
+    return header("Learn")+tabs+LANES.map(([id,name,desc])=>{
       const n=all.filter(it=>it.lane===id).length;
       return `<div class="card tap" onclick="APP.libFilter('${id}')"><div class="row">
         <div><h3 style="font-size:16px">${laneChip(id)} <span style="margin-left:6px">${esc(name)}</span></h3>
@@ -862,7 +891,7 @@ function vLibrary(){
         <span class="progress-ring">${n}</span></div></div>`;}).join("");
   }
   if(libTab==="cats"&&!libFilter){
-    return header("Library")+tabs+`<div class="mgrid">`+masterCats().map(mc=>{
+    return header("Learn")+tabs+`<div class="mgrid">`+masterCats().map(mc=>{
       const ls=all.filter(it=>(it.cats||[]).some(c=>mc.cats.includes(c)));
       const done=ls.filter(it=>DB.done[it.id]).length;
       return `<button class="mtile" onclick="APP.libFilter('${mc.id}')">
@@ -883,38 +912,30 @@ function vLibrary(){
     const uc=(DB.userColls||[]).find(x=>"u-"+x.id===libFilter);
     if(!uc){libFilter=null;return vLibrary();}
     const ls=(uc.itemIds||[]).map(id=>item(id)).filter(Boolean);
-    return header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
+    return header("Learn")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
     <div class="row"><h2 style="font-size:21px;margin-bottom:10px">${esc(uc.glyph||"★")} ${esc(uc.name)}</h2>
     <button class="btn small danger" onclick="APP.delColl('${uc.id}')">✕</button></div>
-    ${ls.map(it=>`<div class="card tap"><div class="row" onclick="APP.item('${it.id}','library')">
-      <div><h3 style="font-size:15.5px">${esc(it.title)}</h3><div class="body">${laneChip(it.lane)}</div></div>
-      <span class="dim" onclick="event.stopPropagation();APP.collRemove('${uc.id}','${it.id}')" style="color:var(--red);cursor:pointer">✕</span></div></div>`).join("")||"<p class='dim'>Empty.</p>"}
+    ${ls.map(it=>lrow(it,"library",`<span class="lmeta" style="color:var(--red);cursor:pointer" onclick="APP.collRemove('${uc.id}','${it.id}')">✕</span>`)).join("")||"<p class='dim'>Empty.</p>"}
     <div class="btnrow"><button class="btn" onclick="APP.collAdd('${uc.id}')">＋ Add element</button></div>`;
   }
   if(libTab==="cats"&&libFilter&&libFilter.startsWith("m-")){
     const mc=masterCats().find(x=>x.id===libFilter);
-    let html=header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
+    let html=header("Learn")+tabs+`<button class="back" onclick="APP.libFilter(null)">← Collections</button>
     <h2 style="font-size:21px;margin-bottom:10px"><span style="margin-right:6px">${mc.glyph}</span>${esc(mc.name)}</h2>`;
     for(const cid of mc.cats){
       const c=catOf(cid);
       const ls=all.filter(it=>(it.cats||[]).includes(cid));
       if(!ls.length)continue;
       html+=`<div class="eyebrow" style="margin-top:14px">${esc(c.name)}</div>`+
-        ls.map(it=>`<div class="card tap" onclick="APP.item('${it.id}','library')"><div class="row">
-        <div><h3 style="font-size:15.5px">${esc(it.title)}${freshDot(it)}</h3>
-        <div class="body">${laneChip(it.lane)}</div></div>
-        ${DB.done[it.id]?'<span class="check">✓</span>':'<span class="dim">→</span>'}</div></div>`).join("");
+        ls.map(it=>lrow(it,"library")).join("");
     }
     return html;
   }
   const list=libTab==="lanes"?all.filter(it=>it.lane===libFilter):all.filter(it=>(it.cats||[]).includes(libFilter));
   const title=libTab==="lanes"?laneName(libFilter):catOf(libFilter).name;
-  return header("Library")+tabs+`<button class="back" onclick="APP.libFilter(null)">← All</button>
+  return header("Learn")+tabs+`<button class="back" onclick="APP.libFilter(null)">← All</button>
   <h2 style="font-size:21px;margin-bottom:10px">${esc(title)}</h2>
-  ${list.length?list.map(it=>`<div class="card tap" onclick="APP.item('${it.id}')"><div class="row">
-    <div><h3 style="font-size:15.5px">${esc(it.title)}${freshDot(it)}</h3>
-    <div class="body">${laneChip(it.lane)} ${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")}</div></div>
-    ${DB.done[it.id]?'<span class="check">✓</span>':'<span class="dim">→</span>'}</div></div>`).join(""):
+  ${list.length?list.map(it=>lrow(it,"library")).join(""):
   `<div class="empty"><p>Nothing here yet.</p></div>`}`;
 }
 function glossReadCount(){return Object.keys(DB.glossRead||{}).length;}
@@ -1032,7 +1053,8 @@ function vItem(){
   const backTo=VIEW.from==="today"?["today","← Back to plan"]:["library","← Library"];
   let html=`<div class="reader"><button class="back" onclick="APP.go('${backTo[0]}')">${backTo[1]}</button>
   <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
-  <h2>${esc(it.title)}</h2>
+  <div class="row" style="align-items:flex-start;gap:8px"><h2 style="flex:1">${esc(it.title)}</h2>
+    <button class="favbtn" title="Favorite" onclick="APP.favToggle('${it.id}')">${(DB.favs||{})[it.id]?"★":"☆"}</button></div>
   <div class="stagenav">${stageBtns}</div>`;
   if(viewLane!==it.lane)html+=`<div class="histbox" style="margin:0 0 12px">Viewing the earlier <strong>${esc(laneName(viewLane))}</strong> version — current stage is ${esc(laneName(it.lane))}.</div>`;
   const showKeys=LANE_ARTS[viewLane]||[];
@@ -1178,8 +1200,36 @@ function gradeRow(u){
     <button class="g-easy" onclick="APP.grade(3)">Easy<span>${ivPreview(u.id,3)}</span></button></div>`;
 }
 
+function laneCol(it){const l=LANE_LEGACY[it.lane]||it.lane;return l==="master"?"var(--green)":l==="understand"?"var(--accent)":"var(--amber)";}
+function lrow(it,from,extra){
+  const col=laneCol(it);
+  return `<div class="lrow"><span class="ldot" style="border-color:${col};${DB.done[it.id]?"background:"+col:""}"></span>
+  <span class="lt" onclick="APP.item('${it.id}','${from||"library"}')">${esc(it.title)}${freshDot(it)}</span>
+  ${extra||`<span class="lmeta">${DB.done[it.id]?"✓":"<span style=\'color:var(--ink3)\'>→</span>"}</span>`}</div>`;
+}
+function favSection(){
+  DB.favs=DB.favs||{};
+  const ids=Object.keys(DB.favs).filter(id=>DB.favs[id]&&item(id));
+  if(!ids.length)return "";
+  return `<details class="prev" open style="margin:0 0 12px"><summary>★ Favorites (${ids.length})</summary>
+  <div style="padding:4px 2px 2px">${ids.map(id=>lrow(item(id),"today")).join("")}</div></details>`;
+}
+function trackTeaser(){
+  const pls=(DATA.studyPlans||[]).map(effPlan);
+  if(!pls.length)return "";
+  const withNext=pls.map(pl=>({pl,st:planStats(pl),nx:nextChips(pl,1)[0]})).filter(x=>x.nx);
+  const act=withNext.filter(x=>x.st.done>0);
+  const show=(act.length?act:withNext).slice(0,2);
+  return `<div class="card"><div class="row"><div class="eyebrow">Your tracks</div>
+    <button class="btn small ghost" onclick="APP.go('library')">All tracks →</button></div>
+    ${show.map(x=>`<div style="margin-top:8px">
+      <div class="row"><strong style="font-size:14px">${esc(x.pl.title)}</strong><span class="dim" style="font-size:12px">${x.st.pct}%</span></div>
+      <div class="pbar" style="margin:5px 0 7px"><i style="width:${x.st.pct}%"></i></div>
+      <button class="btn small solid" onclick="APP.chip('${x.pl.id}','${x.nx.id}')">▶ ${esc(x.nx.t)}</button></div>`).join("")}
+  </div>`;
+}
 /* ---------- Study plan ---------- */
-let PLANFILTER="all", PLANEDIT=false, PLANOPEN={};
+let PLANFILTER="all", PLANEDIT=false, PLANOPEN={}, PHOPEN={};
 function effPlan(pl){
   const cu=(DB.planCustom||{})[pl.id]||{};
   const removed=new Set(cu.removed||[]);
@@ -1250,18 +1300,29 @@ function planSection(){
     <div class="chips" style="margin:8px 0 2px">${FILTERS.map(([id,name])=>`<button class="chip ${PLANFILTER===id?"active":""}" onclick="APP.planFilter('${id}')">${name}</button>`).join("")}</div>
     ${(()=>{const nx=nextChips(pl,1);return nx.length&&!PLANEDIT?`<div class="btnrow" style="margin:4px 0 6px"><button class="btn solid small" onclick="APP.chip('${pl.id}','${nx[0].id}')">▶ Next: ${esc(nx[0].t)}</button></div>`:"";})()}`;
     const KIND={lesson:"◆",read:"📄",video:"▶",practice:"✎",note:"📓"};
+    const nx0=nextChips(pl,1)[0];
     pl.phases.forEach((ph,pi)=>{
       const vis=ph.chips.filter(c=>PLANFILTER==="all"||c.k===PLANFILTER);
       if(!vis.length&&!PLANEDIT)return;
-      const pd=ph.chips.filter(chipDone).length;
-      html+=`<div class="phase"><div class="row"><h3 style="font-size:14.5px">${pi+1} · ${esc(ph.name)}</h3><span class="dim" style="font-size:12px">${pd}/${ph.chips.length}</span></div>
-      <div class="pchips">${vis.map((c,ci)=>PLANEDIT?
-        `<span class="pchip ${chipDone(c)?"done":""}" style="padding-right:6px">${esc(c.t)}
-          <b style="cursor:pointer;color:var(--accent);margin-left:4px" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',-1)">▲</b>
-          <b style="cursor:pointer;color:var(--accent)" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',1)">▼</b>
-          <b style="cursor:pointer;color:var(--red)" onclick="APP.removeChip('${pl.id}','${c.id}')">✕</b></span>`:
-        `<button class="pchip ${chipDone(c)?"done":""}" onclick="APP.chip('${pl.id}','${c.id}')">${chipDone(c)?"✓ ":""}${esc(c.t)} <span class="k">${(KIND[c.k]||"")}${c.min?" "+c.min+"m":""}</span></button>`).join("")}
-      ${PLANEDIT?`<button class="pchip" style="border-style:dashed;color:var(--accent)" onclick="APP.addChipSheet('${pl.id}','${ph.id}')">＋ add step</button>`:""}</div></div>`;
+      const pd=ph.chips.filter(chipDone).length, tot=ph.chips.length;
+      const key=pl.id+":"+ph.id;
+      const open=PHOPEN[key]!==undefined?PHOPEN[key]:(PLANEDIT||(pd<tot&&(nx0?ph.chips.some(c=>c.id===nx0.id):pd>0)));
+      html+=`<div class="tphase"><div class="tphead" onclick="APP.phToggle('${key}',${open?1:0})">
+        <span class="pdot ${pd===tot&&tot?"full":""}"></span><h3>${pi+1} · ${esc(ph.name)}</h3>
+        <span class="dim" style="font-size:12px">${pd}/${tot} ${open?"▾":"▸"}</span></div>`;
+      if(open){
+        html+=`<div class="tbody">`+vis.map(c=>{
+          const dn=chipDone(c), isNext=nx0&&c.id===nx0.id;
+          const meta=`${KIND[c.k]||""}${c.min?" "+c.min+"m":""}`;
+          if(PLANEDIT)return `<div class="trow ${dn?"done":""}"><span class="tdot"></span><span class="tt">${esc(c.t)}</span>
+            <b style="cursor:pointer;color:var(--accent);padding:0 3px" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',-1)">▲</b>
+            <b style="cursor:pointer;color:var(--accent);padding:0 3px" onclick="APP.moveChip('${pl.id}','${ph.id}','${c.id}',1)">▼</b>
+            <b style="cursor:pointer;color:var(--red);padding:0 3px" onclick="APP.removeChip('${pl.id}','${c.id}')">✕</b></div>`;
+          return `<div class="trow ${dn?"done":""} ${isNext?"next":""}" onclick="APP.chip('${pl.id}','${c.id}')">
+            <span class="tdot"></span><span class="tt">${esc(c.t)}</span><span class="tk">${meta}</span></div>`;
+        }).join("")+(PLANEDIT?`<div class="trow" onclick="APP.addChipSheet('${pl.id}','${ph.id}')"><span class="tdot" style="border-style:dashed;border-color:var(--accent)"></span><span class="tt" style="color:var(--accent)">＋ add step</span></div>`:"")+`</div>`;
+      }
+      html+=`</div>`;
     });
     html+=`</div>`;
   }
@@ -1586,18 +1647,34 @@ const APP={
     const ts=new Date().toISOString().replace(/[:T]/g,"-").slice(0,16);
     const dir="capture-"+ts;
     try{
-      const note=`---\ncaptured: ${new Date().toISOString()}\nvia: meridian-app\nrequested_lane: ${CAPLANE}\ninstruction: ${CAPINSTR||"(none)"}\nfiles: ${CAPFILES.map(f=>f.name).join(", ")||"(none)"}\n---\n\n${CAPNOTE}\n`;
+      const note=`---\ncaptured: ${new Date().toISOString()}\nvia: meridian-app\nrequested_lane: ${CAPLANE}\nwork: ${CAPWORK?"true":"false"}\ninstruction: ${CAPINSTR||"(none)"}\nfiles: ${CAPFILES.map(f=>f.name).join(", ")||"(none)"}\n---\n\n${CAPNOTE}\n`;
       await captureToInbox(dir+"/note.md",note);
       for(const f of CAPFILES){
         await gh(`/repos/${repo()}/contents/_inbox/${dir}/${f.name}`,{method:"PUT",body:JSON.stringify({message:"capture attachment",content:f.b64})});
       }
-      CAPNOTE="";CAPINSTR="";CAPFILES=[];CAPLANE="filter";INBOXFILES=null;
+      CAPNOTE="";CAPINSTR="";CAPFILES=[];CAPLANE="filter";CAPWORK=false;INBOXFILES=null;
       toast("Captured ✓ — tap ⚡ or 🔬 when ready");render();
     }catch(e){toast("Upload failed — try again");}},
   async processNow(mode){
     try{
       await captureToInbox(".process-request","mode: "+mode+"\nrequested: "+new Date().toISOString()+"\n");
       toast((mode==="fast"?"⚡ Fast":"🔬 Full")+" processing requested — runs within ~15 min while your Mac has Claude open");
+    }catch(e){toast("Couldn't reach GitHub");}},
+  capWork(v){CAPWORK=!!v;},
+  favToggle(id){DB.favs=DB.favs||{};if(DB.favs[id])delete DB.favs[id];else DB.favs[id]=1;saveLocal();toast(DB.favs[id]?"★ Added to favorites":"Removed from favorites");render();},
+  phToggle(key,cur){PHOPEN[key]=!cur;render();},
+  newTrack(){openSheet(`<h3>New track</h3>
+    <p class="muted" style="font-size:13.5px;margin-bottom:10px">Describe the topic — Claude builds the full track (lessons, cards, quiz, phased plan) on the next 🔬 full process.</p>
+    <textarea id="ntTopic" placeholder="e.g. SQL for analytics PMs — joins, window functions, real dashboards" style="min-height:70px"></textarea>
+    <button class="btn solid" style="width:100%;margin-top:10px" onclick="APP.sendTrackReq()">Request track</button>`);},
+  async sendTrackReq(){
+    const el=$("#ntTopic");const t=el?el.value.trim():"";
+    if(!t)return toast("Describe the topic first");
+    closeSheet();
+    try{
+      const ts=new Date().toISOString().replace(/[:T]/g,"-").slice(0,16);
+      await captureToInbox("capture-"+ts+"-newtrack/note.md",`---\ncaptured: ${new Date().toISOString()}\nvia: quantumleap-app\nrequested_lane: master\nwork: false\ninstruction: BUILD A NEW STUDY TRACK — author full lessons + a phased study plan + category tile, following the established track pattern in MERIDIAN-CLAUDE.md\n---\n\n${t}\n`);
+      toast("Track requested ✓ — tap 🔬 Full process to build it");
     }catch(e){toast("Couldn't reach GitHub");}},
   acceptLane(id){
     const it=DATA.items.find(x=>x.id===id);if(!it)return;
