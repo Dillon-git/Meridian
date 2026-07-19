@@ -329,10 +329,9 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .favbtn{border:none;background:none;font-size:22px;cursor:pointer;color:var(--amber);padding:2px 6px;line-height:1}
 
 /* --- v24 UX release --- */
-nav button.fab{padding:0 6px}
-.fabbtn{display:flex;align-items:center;justify-content:center;width:48px;height:48px;border-radius:50%;
-  background:linear-gradient(135deg,#3B82F6,#1D4ED8);color:#fff;font-size:26px;font-weight:600;line-height:1;
-  margin-top:-22px;box-shadow:0 6px 18px rgba(29,78,216,.35)}
+.trackrow{padding:12px 2px;border-bottom:1px solid var(--line)}
+.trackrow:last-child{border-bottom:none}
+.trackrow .pbar{height:3px;margin:7px 0 8px}
 .itembar{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 74px);left:50%;transform:translateX(-50%);
   display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:999px;
   padding:7px 10px;box-shadow:0 8px 28px rgba(15,15,30,.16);z-index:40;white-space:nowrap}
@@ -359,8 +358,7 @@ nav button{font-size:11.5px}
 <nav id="nav" style="display:none"><div class="inner">
   <button data-v="today"><span class="ico">◉<i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
   <button data-v="library"><span class="ico">▤</span>Learn</button>
-  <button data-v="inbox" class="fab" aria-label="Capture"><span class="fabbtn">＋</span></button>
-  <button data-v="review"><span class="ico">◈<i class="navbadge" id="revBadge" style="display:none"></i></span>Review</button>
+  <button data-v="review"><span class="ico">💼</span>Work</button>
   <button data-v="more"><span class="ico">≡</span>More</button>
 </div></nav>
 <div class="toast" id="toast"></div>
@@ -618,6 +616,12 @@ async function listInboxFiles(){
   }catch(e){return [];}
 }
 
+/* ---------- ui open-state (persists per device) ---------- */
+let UI={};try{UI=JSON.parse(localStorage.getItem("meridian.ui")||"{}");}catch(e){}
+function uiOpen(key,def){return UI[key]===undefined?!!def:!!UI[key];}
+function sect(key,label,inner,def){
+  return `<details class="prev" style="margin:0 0 12px" ${uiOpen(key,def)?"open":""} ontoggle="APP.uiTog('${key}',this.open)"><summary>${label}</summary>${inner}</details>`;
+}
 /* ---------- render helpers ---------- */
 function md(body,dgs){
   const fmt=s=>esc(s).replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>")
@@ -749,8 +753,8 @@ function header(sub){
   const pend=DATA.items.filter(it=>it.proposed&&!DB.inboxDecisions[it.id]).length;
   return `<div class="brand"><h1 style="display:flex;align-items:center;gap:9px">${QL_LOGO} QuantumLeap</h1>
     <span style="display:flex;align-items:center;gap:8px">
-    <span class="inboxtile" onclick="APP.search()" title="Search everything">⌕</span>
-    <span class="inboxtile" onclick="APP.go('inbox')" title="Inbox">▼${pend?" "+pend:""}</span>
+    <span class="inboxtile" onclick="APP.search()" title="Search everything (press /)">⌕</span>
+    <span class="inboxtile" onclick="APP.go('inbox')" title="Capture something new">＋${pend?" "+pend:""}</span>
     <span class="streakpill">🔥 ${DB.meta.streak||0}</span>
     <span class="dim" style="font-size:14px;cursor:pointer" onclick="APP.settings()"><span class="syncdot ${syncState}"></span>⚙</span></span></div>
     <div class="datebar">${sub||fmtDate()}</div>`;
@@ -789,20 +793,21 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   const pend=pendingProposals().length;
   const plan=coachPlan();
   const goals=(DB.goals||[]).filter(g=>!g.del);
+  const est=Math.round((due+fresh)*0.5+(lesson?(artifact(lesson,"lesson")||{}).min||8:0));
+  const procN=(DB.caps||[]).filter(c=>!c.filed).length;
+  const coachHtml=`<ul style="margin:4px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
+    <div class="btnrow" style="margin-top:6px"><button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>`;
   return header("Your day · "+fmtDate())+`
   <div class="card lux" style="margin-top:2px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
     <span class="tmrbox" id="tmr">--:--</span><br>
-    <span style="font-size:12.5px;color:var(--ink3)">${due+fresh?due+fresh+" to recall":"reviews clear"}${lesson?" · 1 lesson":""} · counts while open</span></div></div>
-    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1;font-size:16px;padding:13px" onclick="APP.startFlow()">▶ Continue</button>
+    <span style="font-size:12.5px;color:var(--ink3)">${procN?`⏳ ${procN} capture${procN>1?"s":""} processing · `:""}counts while open</span></div></div>
+    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1;font-size:15.5px;padding:13px" onclick="APP.startFlow()">▶ Continue${due+fresh||lesson?` — ${due+fresh?due+fresh+" recall":""}${due+fresh&&lesson?" · ":""}${lesson?"1 lesson":""} · ~${Math.max(est,2)} min`:""}</button>
     <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
   </div>
   ${newForYou()}
   ${pend?`<div class="card tap" onclick="APP.go('inbox')"><div class="row"><div><div class="eyebrow">Inbox</div>
     <h3>${pend} item${pend>1?"s":""} awaiting your decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
-  ${trackTeaser()}
-  ${favSection()}
-  ${workContext()}
   ${ch?`<div class="card">
     <div class="eyebrow">Daily challenge</div>
     <div class="body" style="color:var(--ink);font-size:15px">${esc(ch.text)}</div>
@@ -810,22 +815,21 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
     <div class="btnrow">${chDone?`<span class="pill ok">Completed ✓</span>`:`<button class="btn small solid" onclick="APP.drill()">Answer the drill</button>
     <button class="btn small ghost" onclick="APP.challengeDone()">Did it elsewhere +20</button>`}</div>
   </div>`:""}
-  ${newsDigest()}
-  <div class="card"><div class="row"><div class="eyebrow">This week's plan · coach</div>
-    <button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>
-    <ul style="margin:8px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
-    ${plan.rationale?`<p class="dim" style="font-size:12px;margin-top:8px">${esc(plan.rationale)}</p>`:""}
-  </div>
+  ${trackTeaser()}
+  ${(()=>{const f=favSection();return f?sect("plan.favs","★ Favorites",f,false):"";})()}
+  ${(()=>{const w=workContextInner();return w?sect("plan.work","💼 Work context",w,false):"";})()}
+  ${sect("plan.coach","🗓 This week's coach",coachHtml,false)}
+  ${(()=>{const nd=newsDigestInner();return nd?sect("plan.news","📰 Briefing",nd,false):"";})()}
   ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}`;
 }
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);return m<1?"just now":m<60?m+"m ago":Math.round(m/60)+"h ago";}
 function newSince(){
   const seen=DB.lastSeen||0;
-  const fresh=items().filter(it=>!it.proposed&&it.updated&&Date.parse(it.updated)>seen);
-  const answered=items().filter(it=>it.artifacts&&it.artifacts.qa&&it.artifacts.qa.some(q=>{
-    const t=Date.parse(q.at||"")||0;return t>seen-DAY;}));
-  return {fresh:fresh.slice(0,6),answered:answered.filter(a=>!fresh.includes(a)).slice(0,4),
-    count:fresh.length+answered.filter(a=>!fresh.includes(a)).length};
+  const changed=items().filter(it=>!it.proposed&&it.updated&&Date.parse(it.updated)>seen);
+  const isAns=it=>it.artifacts&&it.artifacts.qa&&it.artifacts.qa.some(q=>(Date.parse(q.at||"")||0)>Date.now()-3*DAY);
+  const answered=changed.filter(isAns);
+  const fresh=changed.filter(it=>!isAns(it)).slice(0,6);
+  return {fresh,answered:answered.slice(0,4),count:fresh.length+answered.length};
 }
 function newForYou(){
   const ns=newSince();
@@ -838,20 +842,19 @@ function newForYou(){
       <span class="lt" onclick="APP.item('${it.id}','today')">${esc(it.title)}</span><span class="lmeta">💬 answered</span></div>`).join("")}
   </div>`;
 }
-function workContext(){
+function workContextInner(){
   const ps=(DB.projects||[]).filter(p=>!p.del&&p.status!=="paused");
   if(!ps.length)return "";
-  return `<details class="prev" style="margin:0 0 12px"><summary>💼 Work context (${ps.length})</summary>
-    <div style="padding:4px 2px 2px">${ps.map(p=>`<div class="lrow"><span class="ldot" style="border-color:${p.status==="active"?"var(--green)":"var(--amber)"}"></span>
+  return `<div style="padding:4px 2px 2px">${ps.map(p=>`<div class="lrow"><span class="ldot" title="${esc(p.status||"")}" style="border-color:${p.status==="active"?"var(--green)":"var(--amber)"}"></span>
     <span class="lt" onclick="APP.go('project','${p.id}')">${esc(p.name)}</span>
-    <span class="lmeta" style="color:var(--ink3);font-weight:500;font-size:11.5px">${esc(p.status||"")}</span></div>`).join("")}</div></details>`;
+    <span class="lmeta" style="color:var(--ink3);font-weight:500;font-size:11.5px">${esc(p.status||"")}</span></div>`).join("")}</div>`;
 }
-function newsDigest(){
+function newsDigestInner(){
   const acts=DB.newsActions||{};
-  const live=(DATA.news||[]).filter(n=>!acts[n.id]).sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,3);
+  const live=(DATA.news||[]).filter(n=>!acts[n.id]||acts[n.id].a==="keep").sort((a,b)=>(b.date||"").localeCompare(a.date||"")).slice(0,3);
   if(!live.length)return "";
-  return `<div class="card tap" onclick="APP.go('news')"><div class="row"><div class="eyebrow">📰 Briefing</div><span class="dim" style="font-size:12px">open →</span></div>
-    ${live.map(n=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:550;color:var(--ink)">${esc(n.title)}</div>`).join("")}</div>`;
+  return `<div style="padding:2px">${live.map(n=>`<div style="padding:6px 0;border-bottom:1px solid var(--line);font-size:14px;font-weight:550;color:var(--ink)">${esc(n.title)}</div>`).join("")}
+  <div class="btnrow" style="margin-top:8px"><button class="btn small ghost" onclick="APP.go('news')">All briefings →</button></div></div>`;
 }
 function chResourceLink(ch){
   if(ch.resItemId){const it=DATA.items.find(x=>x.id===ch.resItemId);if(it)return `<div style="margin:6px 0 2px"><a href="javascript:void(0)" onclick="APP.item('${it.id}')" style="font-size:13px;color:var(--accent);font-weight:600">📖 Review: ${esc(it.title)}</a></div>`;}
@@ -864,7 +867,7 @@ let INBOXFILES=null, CAPLANE="filter", CAPFILES=[], CAPWORK=false, CAPMODE="fast
 const CAPLANES=[["filter","Skim (default)"],["understand","Understand"],["master","Master"]];
 function capStatus(){
   const caps=(DB.caps||[]).slice(-8).reverse();
-  if(!caps.length)return "";
+  if(!caps.length)return `<p class="dim" style="font-size:12.5px;margin:0 2px 16px">Nothing captured yet — anything you send lands in Skim within ~15 minutes, and shows up under 🔔 New for you.</p>`;
   return `<div class="card" style="margin-bottom:16px"><div class="row"><div class="eyebrow">Your captures</div>
     <button class="btn small ghost" onclick="APP.refreshInbox()">↻ refresh</button></div>
     ${caps.map(c=>{
@@ -874,7 +877,9 @@ function capStatus(){
     }).join("")}
     <p class="dim" style="font-size:11.5px;margin-top:8px">Runs within ~15 min while your Mac has Claude open. Results appear under 🔔 New for you.</p></div>`;
 }
+let CAPPOLL=0;
 function vInbox(){
+  if(Date.now()-CAPPOLL>45000){CAPPOLL=Date.now();APP.refreshInbox(true);}
   const pend=pendingProposals();
   let html=header("Inbox")+`
   <div class="card lux">
@@ -905,7 +910,7 @@ function vInbox(){
         ${opts}
         <button class="btn small ghost" onclick="APP.item('${it.id}')">Open</button></div></div>`;}).join("");
   }
-  if(INBOXFILES===null){html+=`<p class="dim" style="font-size:13px">Checking raw inbox…</p>`;APP.refreshInbox(true);}
+  if(INBOXFILES===null){html+=`<p class="dim" style="font-size:13px">Checking raw inbox…</p>`;}
   else if(INBOXFILES.length){
     html+=`<div class="eyebrow" style="margin-top:12px">Queued for processing (${INBOXFILES.length})</div>
     <div class="card"><div class="body">${INBOXFILES.map(esc).join("<br>")}</div>
@@ -1130,7 +1135,7 @@ function vItem(){
   let html=`<div class="reader"><button class="back" onclick="APP.go('${backTo[0]}')">${backTo[1]}</button>
   <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
   <div class="row" style="align-items:flex-start;gap:8px"><h2 style="flex:1">${esc(it.title)}</h2>
-    <button class="favbtn" title="Favorite" onclick="APP.favToggle('${it.id}')">${(DB.favs||{})[it.id]?"★":"☆"}</button></div>
+    <button class="favbtn" title="Favorite" onclick="APP.favToggle('${it.id}',this)">${(DB.favs||{})[it.id]?"★":"☆"}</button></div>
   <div class="stagenav">${stageBtns}</div>`;
   if(viewLane!==it.lane)html+=`<div class="histbox" style="margin:0 0 12px">Viewing the earlier <strong>${esc(laneName(viewLane))}</strong> version — current stage is ${esc(laneName(it.lane))}.</div>`;
   const showKeys=LANE_ARTS[viewLane]||[];
@@ -1155,7 +1160,7 @@ function vItem(){
     <button class="btn small ghost" style="margin-top:8px" onclick="APP.editArtifact('${it.id}','${key}')">Edit</button></div></div>`;
   }
   if(cards.length){
-    html+=`<details class="prev artif"><summary>Flashcards (${cards.length})</summary>`+cards.map((c,i)=>
+    html+=`<details class="prev artif" ${uiOpen("cards."+it.id,false)?"open":""} ontoggle="APP.uiTog('cards.${it.id}',this.open)"><summary>Flashcards (${cards.length})</summary>`+cards.map((c,i)=>
       `<div class="listitem" onclick="APP.editCard('${it.id}',${i})"><h4>${esc(c.q)}</h4><p>${esc(c.a)}</p></div>`).join("")+`</details>`;
   }
   const need=(LANE_ARTS[it.lane]||[])[0];
@@ -1169,7 +1174,7 @@ function vItem(){
   const hasLesson=!!les;
   html+=`<div class="itembar">
     ${hasLesson?(DB.done[it.id]?`<span class="pill ok" style="margin:0">Done ✓</span>`:`<button class="btn solid small" onclick="APP.lessonDone('${it.id}')">✓ Complete +15</button>`):""}
-    <button class="btn small ghost" style="font-size:17px;padding:6px 10px" onclick="APP.favToggle('${it.id}')">${(DB.favs||{})[it.id]?"★":"☆"}</button>
+    <button class="btn small ghost favbtn" style="font-size:17px;padding:6px 10px" onclick="APP.favToggle('${it.id}',this)">${(DB.favs||{})[it.id]?"★":"☆"}</button>
     <button class="btn small ghost" onclick="APP.askClaude('item','${it.id}',this.dataset.t)" data-t="${esc(it.title)}">💬 Ask</button>
   </div><div style="height:56px"></div>`;
   if(it.note_path)html+=`<p style="margin-top:14px;font-size:13.5px"><a style="color:var(--accent)" href="https://github.com/${repo()}/blob/main/${esc(it.note_path)}" target="_blank">Open deep note in vault →</a></p>`;
@@ -1179,17 +1184,14 @@ function vItem(){
 /* ---------- Review ---------- */
 let SESSION=null;
 function reviewMode(){return localStorage.getItem("meridian.mode")||"flip";}
-let REVTAB="notes";
+let REVTAB="projects";
 function vReview(){
   if(REVTAB!=="session"){
     const tabs=`<div class="subtabs">
-      <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button>
-      <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button></div>`;
+      <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button>
+      <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button></div>`;
     deskTab=REVTAB;
-    const due=dueUnits().length;
-    const banner=due?`<div class="card tap" style="margin-bottom:12px" onclick="APP.startFlow()"><div class="row">
-      <h3 style="font-size:15px">▶ ${due} to recall — start your session</h3><span class="badge">${due}</span></div></div>`:"";
-    return header("Review")+tabs+banner+vDesk();
+    return header("Work")+tabs+vDesk();
   }
   if(!SESSION){
     const due=interleave(dueUnits());
@@ -1206,14 +1208,24 @@ function vReview(){
   }
   const s=SESSION;
   if(s.i>=s.q.length){
-    const n=s.doneCount;SESSION=null;REVTAB="notes";
+    const n=s.doneCount;SESSION=null;REVTAB="projects";
     const l=nextLessonItem();
-    return header("Review")+`<div class="empty"><div class="glyph">✦</div>
-      <h3 style="margin-bottom:6px">Session complete</h3>
-      <p style="font-size:14px">${n} reviewed · +${n*2} XP</p>
-      <div style="margin-top:18px" class="btnrow">
+    const tk=todayStr(); const gl=(DB.meta.gradelog||{})[tk]||{n:0,a:0};
+    const todayRet=gl.n?Math.round((1-gl.a/gl.n)*100):null;
+    let g30n=0,g30a=0;for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){g30n+=e.n;g30a+=e.a;}}
+    const ret30=g30n?Math.round((1-g30a/g30n)*100):null;
+    const mins=Math.round(activeMinToday());
+    return header("Session")+`<div class="empty"><div class="glyph">✦</div>
+      <h3 style="margin-bottom:10px">Session complete</h3>
+      <div class="stats" style="max-width:340px;margin:0 auto 6px">
+        <div class="stat"><div class="n">${n}</div><div class="l">Recalled</div></div>
+        <div class="stat"><div class="n">${mins}</div><div class="l">Min today</div></div>
+        <div class="stat"><div class="n" style="color:${todayRet==null?"var(--ink)":todayRet>=85?"var(--green)":todayRet>=70?"var(--amber)":"var(--red)"}">${todayRet==null?"—":todayRet+"%"}</div><div class="l">Today${ret30!=null?" · 30d "+ret30+"%":""}</div></div>
+      </div>
+      <p style="font-size:13.5px;color:var(--ink3)">🔥 Streak ${DB.meta.streak||0} · +${n*2} XP</p>
+      <div style="margin-top:16px" class="btnrow" >
       ${FLOW&&l?`<button class="btn solid" onclick="APP.item('${l.id}')">Next: today's lesson →</button>`:""}
-      <button class="btn ${FLOW&&l?"ghost":"solid"}" onclick="APP.go('today')">Back to Today</button></div></div>`;
+      <button class="btn ${FLOW&&l?"ghost":"solid"}" onclick="APP.go('today')">Back to Plan</button></div></div>`;
   }
   const u=resolveUnit(s.q[s.i]);
   const head=header("Review · "+(s.i+1)+" of "+s.q.length);
@@ -1279,7 +1291,7 @@ function gradeRow(u){
 function laneCol(it){const l=LANE_LEGACY[it.lane]||it.lane;return l==="master"?"var(--green)":l==="understand"?"var(--accent)":"var(--amber)";}
 function lrow(it,from,extra){
   const col=laneCol(it);
-  return `<div class="lrow"><span class="ldot" style="border-color:${col};${DB.done[it.id]?"background:"+col:""}"></span>
+  return `<div class="lrow"><span class="ldot" title="${esc(laneName(LANE_LEGACY[it.lane]||it.lane))}${DB.done[it.id]?" · done":""}" style="border-color:${col};${DB.done[it.id]?"background:"+col:""}"></span>
   <span class="lt" onclick="APP.item('${it.id}','${from||"library"}')">${esc(it.title)}${freshDot(it)}</span>
   ${extra||`<span class="lmeta">${DB.done[it.id]?"✓":"<span style=\'color:var(--ink3)\'>→</span>"}</span>`}</div>`;
 }
@@ -1287,21 +1299,21 @@ function favSection(){
   DB.favs=DB.favs||{};
   const ids=Object.keys(DB.favs).filter(id=>DB.favs[id]&&item(id));
   if(!ids.length)return "";
-  return `<details class="prev" open style="margin:0 0 12px"><summary>★ Favorites (${ids.length})</summary>
-  <div style="padding:4px 2px 2px">${ids.map(id=>lrow(item(id),"today")).join("")}</div></details>`;
+  return `<div style="padding:4px 2px 2px">${ids.map(id=>lrow(item(id),"today")).join("")}</div>`;
 }
 function trackTeaser(){
   const pls=(DATA.studyPlans||[]).map(effPlan);
   if(!pls.length)return "";
   const withNext=pls.map(pl=>({pl,st:planStats(pl),nx:nextChips(pl,1)[0]})).filter(x=>x.nx);
-  const act=withNext.filter(x=>x.st.done>0);
-  const show=(act.length?act:withNext).slice(0,2);
+  const act=withNext.filter(x=>x.st.done>0).sort((a,b)=>b.st.pct-a.st.pct);
+  const x=(act[0]||withNext[0]);
+  if(!x)return "";
   return `<div class="card"><div class="row"><div class="eyebrow">Your tracks</div>
-    <button class="btn small ghost" onclick="APP.go('library')">All tracks →</button></div>
-    ${show.map(x=>`<div style="margin-top:8px">
+    <button class="btn small ghost" onclick="APP.lib('tracks')">All tracks →</button></div>
+    <div style="margin-top:8px">
       <div class="row"><strong style="font-size:14px">${esc(x.pl.title)}</strong><span class="dim" style="font-size:12px">${x.st.pct}%</span></div>
       <div class="pbar" style="margin:5px 0 7px"><i style="width:${x.st.pct}%"></i></div>
-      <button class="btn small solid" onclick="APP.chip('${x.pl.id}','${x.nx.id}')">▶ ${esc(x.nx.t)}</button></div>`).join("")}
+      <button class="btn small solid" onclick="APP.chip('${x.pl.id}','${x.nx.id}')">▶ ${esc(x.nx.t)}</button></div>
   </div>`;
 }
 /* ---------- Study plan ---------- */
@@ -1361,11 +1373,12 @@ function planSection(){
     const open=!!PLANOPEN[pl.id];
     if(!open){
       const nxc=nextChips(pl,1)[0];
-      html+=`<div class="pchip" style="display:block;width:100%;margin-bottom:10px;padding:10px 14px;cursor:default">
+      html+=`<div class="trackrow">
         <div class="row" style="cursor:pointer" onclick="APP.planToggle('${pl.id}')">
-          <span>📚 ${esc(pl.title)} <span class="dim" style="font-size:12px;font-weight:500">· ${st.pct}%</span></span>
-          <span style="color:var(--accent);font-weight:700">▸</span></div>
-        ${nxc?`<div style="margin-top:7px"><button class="btn small ghost" style="font-size:12.5px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t)}</button></div>`:`<div class="dim" style="font-size:12px;margin-top:6px">Complete ✓</div>`}
+          <strong style="font-size:14.5px">${esc(pl.title)}</strong>
+          <span class="dim" style="font-size:12px">${st.pct}% <b style="color:var(--accent)">▸</b></span></div>
+        <div class="pbar"><i style="width:${st.pct}%"></i></div>
+        ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
       </div>`;
       continue;
     }
@@ -1415,11 +1428,12 @@ function vDesk(){
   const tabs="";
   if(deskTab==="notes"){
     const notes=(DB.notes||[]).filter(n=>!n.del).sort((a,b)=>(b.u||0)-(a.u||0));
-    return tabs+(notes.length?notes.map(n=>
+    return tabs+`<div class="btnrow" style="margin-bottom:10px"><button class="btn small" onclick="APP.editNote()">＋ New note</button>
+      <span class="dim" style="font-size:12px;align-self:center">insights, drill answers, meeting thoughts</span></div>`+
+      (notes.length?notes.map(n=>
       `<div class="listitem" onclick="APP.note('${n.id}')"><h4>${esc(n.title||"Untitled")}</h4><p>${esc(n.body||"")}</p>
       <span class="tag">${new Date(n.u).toLocaleDateString()}</span></div>`).join(""):
-      `<div class="empty"><div class="glyph">✎</div><p style="font-size:14px">Capture what you learn at work.</p></div>`)+
-      `<div class="btnrow"><button class="btn" onclick="APP.editNote()">+ New note</button></div>`;
+      `<div class="empty"><div class="glyph">✎</div><p style="font-size:14px">Notes live next to your projects — one place for what you're learning at work.<br>Your session drill answers land here too.</p></div>`);
   }
   const ps=(DB.projects||[]).filter(p=>!p.del).sort((a,b)=>(b.u||0)-(a.u||0));
   return tabs+(ps.length?ps.map(p=>
@@ -1716,14 +1730,18 @@ const APP={
       if(VIEW.name==="inbox")render();});
     if(!silent)toast("Refreshing…");},
   capMode(m){APP.snapshotCap();CAPMODE=m;render();},
-  search(){openSheet(`<h3>Search everything</h3>
-    <input type="text" id="gq" placeholder="Lessons, glossary, tracks, projects, news…" autocomplete="off" oninput="APP.gsearch(this.value)" style="margin-bottom:6px">
-    <div id="gres" class="dim" style="font-size:13px">Type to search 145 lessons, 259 terms, tracks, projects, and briefings.</div>`);
+  search(){
+    let rec=[];try{rec=JSON.parse(localStorage.getItem("meridian.recentq")||"[]");}catch(e){}
+    openSheet(`<h3>Search everything</h3>
+    <input type="text" id="gq" placeholder="Lessons, glossary, tracks, projects, news…" autocomplete="off" oninput="APP.gsearchD(this.value)" style="margin-bottom:6px">
+    <div id="gres" class="dim" style="font-size:13px">${rec.length?`Recent: `+rec.map(r=>`<span class="chip" style="margin-right:6px;cursor:pointer" onclick="$('#gq').value='${esc(r)}';APP.gsearch('${esc(r)}')">${esc(r)}</span>`).join(""):`Across ${items().length} lessons, ${(DATA.glossary||[]).length} terms, ${(DATA.studyPlans||[]).length} tracks, projects, and briefings.`}</div>`);
     setTimeout(()=>{const e=$("#gq");if(e)e.focus();},50);},
+  gsearchD(q){clearTimeout(APP._st);APP._st=setTimeout(()=>APP.gsearch(q),150);},
   gsearch(q){
     const box=$("#gres");if(!box)return;
     q=(q||"").trim().toLowerCase();
     if(q.length<2){box.innerHTML="";return;}
+    try{let rec=JSON.parse(localStorage.getItem("meridian.recentq")||"[]");rec=[q].concat(rec.filter(x=>x!==q)).slice(0,5);localStorage.setItem("meridian.recentq",JSON.stringify(rec));}catch(e){}
     const hit=(t)=>String(t||"").toLowerCase().includes(q);
     const out=[];
     const its=items().filter(it=>hit(it.title)||hit(it.summary)||hit((artifact(it,"lesson")||{}).body)).slice(0,5);
@@ -1731,7 +1749,7 @@ const APP={
       `<div class="srchhit" onclick="APP.closeSheet();APP.item('${it.id}')"><h4>${esc(it.title)}</h4><p>${esc(laneName(LANE_LEGACY[it.lane]||it.lane))} · ${(it.cats||[]).map(c=>esc(catOf(c).name)).join(", ")}</p></div>`).join(""));
     const gs=(DATA.glossary||[]).filter(t=>hit(t.term)||hit(t.def)).slice(0,5);
     if(gs.length)out.push(`<div class="eyebrow" style="margin-top:8px">Glossary</div>`+gs.map(t=>
-      `<div class="srchhit" onclick="APP.closeSheet();glossQuery='${esc(t.term).replace(/'/g,"")}';APP.go('gloss')"><h4>${esc(t.term)}</h4><p>${esc(t.def.slice(0,90))}</p></div>`).join(""));
+      `<div class="srchhit" onclick="APP.glossTermSheet('${t.id}')"><h4>${esc(t.term)}</h4><p>${esc(t.def.slice(0,90))}</p></div>`).join(""));
     const pls=(DATA.studyPlans||[]).filter(pl=>hit(pl.title)||pl.phases.some(ph=>ph.chips.some(c=>hit(c.t)))).slice(0,4);
     if(pls.length)out.push(`<div class="eyebrow" style="margin-top:8px">Tracks</div>`+pls.map(pl=>
       `<div class="srchhit" onclick="APP.closeSheet();PLANOPEN['${pl.id}']=1;APP.lib('tracks')"><h4>📚 ${esc(pl.title)}</h4><p>${planStats(effPlan(pl)).pct}% complete</p></div>`).join(""));
@@ -1742,6 +1760,15 @@ const APP={
     if(nws.length)out.push(`<div class="eyebrow" style="margin-top:8px">News</div>`+nws.map(n=>
       `<div class="srchhit" onclick="APP.closeSheet();APP.go('news')"><h4>${esc(n.title)}</h4><p>${esc(n.date||"")}</p></div>`).join(""));
     box.innerHTML=out.join("")||`<p class="dim" style="margin-top:8px">No matches for “${esc(q)}”.</p>`;},
+  glossTermSheet(id){
+    const t=(DATA.glossary||[]).find(x=>x.id===id);if(!t)return;
+    DB.glossRead=DB.glossRead||{};const wasRead=!!DB.glossRead[t.id];
+    openSheet(`<h3>${esc(t.term)}</h3>
+    <p class="dim" style="font-size:12px;margin-bottom:8px">${esc(t.cat||"")}</p>
+    <div class="prose" style="font-size:14.5px">${md(t.def)}</div>
+    <div class="btnrow" style="margin-top:14px">
+      ${wasRead?`<span class="pill ok">Read ✓</span>`:`<button class="btn small solid" onclick="DB.glossRead['${t.id}']=Date.now();saveLocal();APP.closeSheet();toast('Marked read ✓')">✓ Mark read</button>`}
+      <button class="btn small ghost" onclick="APP.closeSheet();glossQuery='';GLOSSSEC=null;APP.go('gloss')">Open glossary</button></div>`);},
   dataMap(){openSheet(`<h3>🔒 Where your data lives</h3>
     <div class="prose" style="font-size:14px">
     <p><strong>This app (public)</strong> — an empty shell on GitHub Pages. Zero content, zero personal data. Anyone can see the code; nobody can see your stuff.</p>
@@ -1749,6 +1776,7 @@ const APP={
     <p><strong>Local work area (Mac only)</strong> — confidential work material never leaves your computer; the app only ever gets keyword stubs.</p>
     <p><strong>This device</strong> — a local cache + your token. “Erase app data” in Settings clears only this device; the vault restores everything.</p></div>`);},
   seenAll(){DB.lastSeen=Date.now();saveLocal();render();},
+  uiTog(key,open){UI[key]=!!open;try{localStorage.setItem("meridian.ui",JSON.stringify(UI));}catch(e){}},
   capLane(id){APP.snapshotCap();CAPLANE=id;render();},
   snapshotCap(){const b=$("#capB"),i=$("#capI");if(b)CAPNOTE=b.value;if(i)CAPINSTR=i.value;},
   stageFiles(inp){
@@ -1787,7 +1815,8 @@ const APP={
       toast((mode==="fast"?"⚡ Fast":"🔬 Full")+" processing requested — runs within ~15 min while your Mac has Claude open");
     }catch(e){toast("Couldn't reach GitHub");}},
   capWork(v){CAPWORK=!!v;},
-  favToggle(id){DB.favs=DB.favs||{};if(DB.favs[id])delete DB.favs[id];else DB.favs[id]=1;saveLocal();toast(DB.favs[id]?"★ Added to favorites":"Removed from favorites");render();},
+  favToggle(id,el){DB.favs=DB.favs||{};if(DB.favs[id])delete DB.favs[id];else DB.favs[id]=1;saveLocal();toast(DB.favs[id]?"★ Added to favorites":"Removed from favorites");
+    if(el){el.textContent=DB.favs[id]?"★":"☆";document.querySelectorAll(".favbtn").forEach(b=>b.textContent=DB.favs[id]?"★":"☆");}else render();},
   phToggle(key,cur){PHOPEN[key]=!cur;render();},
   newTrack(){openSheet(`<h3>New track</h3>
     <p class="muted" style="font-size:13.5px;margin-bottom:10px">Describe the topic — Claude builds the full track (lessons, cards, quiz, phased plan) on the next 🔬 full process.</p>
@@ -2123,14 +2152,22 @@ window.APP=APP;
 
 function vMore(){
   const acts=DB.newsActions||{};
-  const unread=(DATA.news||[]).filter(n=>!acts[n.id]).length;
+  const unread=(DATA.news||[]).filter(n=>!acts[n.id]||acts[n.id].a==="keep").length;
   const row=(ico,label,fn,meta)=>`<div class="lrow" style="padding:13px 2px"><span style="font-size:18px;width:26px;text-align:center">${ico}</span>
     <span class="lt" onclick="${fn}">${label}</span>${meta?`<span class="lmeta" style="color:var(--accent)">${meta}</span>`:""}</div>`;
-  return header("More")+`<div class="morelist card" style="padding:4px 14px">
+  return header("More")+`
+  <div class="setsec">Reading</div>
+  <div class="morelist card" style="padding:4px 14px">
     ${row("📰","News briefings","APP.go('news')",unread?unread+" new":"")}
+  </div>
+  <div class="setsec">Progress</div>
+  <div class="morelist card" style="padding:4px 14px">
     ${row("📊","Stats & progress","APP.go('stats')","")}
-    ${row("📖","How this system works","APP.guide()","")}
     ${row("🎯","Goals","APP.goalSheet()","")}
+  </div>
+  <div class="setsec">App</div>
+  <div class="morelist card" style="padding:4px 14px">
+    ${row("📖","How this system works","APP.guide()","")}
     ${row("🔒","Where my data lives","APP.dataMap()","")}
     ${row("⚙","Settings","APP.settings()","")}
   </div>`;
@@ -2192,6 +2229,12 @@ function render(){
 }
 
 /* ---------- boot ---------- */
+document.addEventListener("keydown",e=>{
+  if(e.key==="Escape"){closeSheet();return;}
+  const tag=(e.target&&e.target.tagName||"").toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select")return;
+  if(e.key==="/"||((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==="k")){e.preventDefault();APP.search();}
+});
 try{const sp=new URLSearchParams(location.search);
   if(sp.get("share_text")||sp.get("share_url")||sp.get("share_title")){
     CAPNOTE=[sp.get("share_title"),sp.get("share_text"),sp.get("share_url")].filter(Boolean).join("\n");
