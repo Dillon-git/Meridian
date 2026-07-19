@@ -1,5 +1,5 @@
 {
-  "name": "QuantumLeap — AI PM Mastery",
+  "name": "QuantumLeap \u2014 AI PM Mastery",
   "short_name": "QuantumLeap",
   "description": "Your private system for becoming a world-class AI product manager.",
   "start_url": ".",
@@ -7,7 +7,25 @@
   "background_color": "#1D4ED8",
   "theme_color": "#1D4ED8",
   "icons": [
-    {"src": "icon-180.png", "sizes": "180x180", "type": "image/png"},
-    {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"}
-  ]
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "share_target": {
+    "action": "./",
+    "method": "GET",
+    "params": {
+      "title": "share_title",
+      "text": "share_text",
+      "url": "share_url"
+    }
+  }
 }
