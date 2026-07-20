@@ -434,6 +434,14 @@ nav button{font-size:11.5px}
 .keybox{border:1.5px solid var(--accent);border-radius:12px;padding:10px 13px;font-size:13px;color:var(--ink);background:color-mix(in srgb,var(--accent) 5%,var(--card))}
 .tipbox{border:1.5px dashed #D85A30;border-radius:12px;padding:10px 13px;font-size:13px;color:var(--ink);margin-top:12px;background:color-mix(in srgb,#D85A30 5%,var(--card))}
 .tipbox b{color:#993C1D}
+
+/* --- v38 glossary --- */
+.gexbox{border-left:3px solid #1D9E75;background:color-mix(in srgb,#1D9E75 8%,var(--card));border-radius:0 10px 10px 0;padding:9px 12px;font-size:13px;margin-top:10px;text-align:left;color:var(--ink)}
+.gwhybox{border-left:3px solid #EF9F27;background:color-mix(in srgb,#EF9F27 9%,var(--card));border-radius:0 10px 10px 0;padding:9px 12px;font-size:13px;margin-top:8px;text-align:left;color:var(--ink)}
+.gfavbtn{border:1.5px solid #EF9F27;background:none;color:#854F0B;border-radius:999px;padding:7px 14px;font-size:12.5px;font-weight:600;cursor:pointer;font-family:var(--sans)}
+.gfavbtn.on{background:color-mix(in srgb,#EF9F27 18%,var(--card))}
+.gcar{touch-action:pan-x;overscroll-behavior-x:contain}
+.gcatchip{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:3px 10px;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -448,7 +456,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v37";
+const BUILD="v38";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -476,7 +484,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},trackOrder:[],
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},trackOrder:[],glossFavs:{},
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -662,6 +670,7 @@ function mergeDB(rem){
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
   out.meetTasks=Object.assign({},rem.meetTasks||{},DB.meetTasks||{});
+  out.glossFavs=Object.assign({},rem.glossFavs||{},DB.glossFavs||{});
   out.planProg=Object.assign({},rem.planProg||{},DB.planProg||{});
   out.userColls=mergeItems(rem.userColls,DB.userColls);
   out.planCustom=Object.assign({},rem.planCustom||{});
@@ -1243,11 +1252,10 @@ function glossSections(){
 function vGlossTab(){
   if(GLOSSSEC||glossQuery)return header("Learn")+learnTabs("gloss")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
   const secs=glossSections();
-  return header("Learn")+learnTabs("gloss")+`<div class="chips" style="margin-bottom:8px">${GSORTS.map(([id,name])=>`<button class="chip ${GSORT===id?"active":""}" onclick="APP.glossSort('${id}')">${name}</button>`).join("")}</div>
-  <div class="gloss-head">
+  return header("Learn")+learnTabs("gloss")+`<div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
-    <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
+    ${glossSortSel()}</div>
   ${glossCarousel()}
   <div class="sgrid2">${(()=>{const PAL=["#1D9E75","#7F77DD","#378ADD","#D85A30","#D4537E","#639922","#EF9F27","#0C447C","#993556","#5F5E5A"];let vi=0;
     return secs.map(s=>{
@@ -1269,20 +1277,22 @@ function vGloss(){
   GCARD.i=Math.min(GCARD.i,Math.max(0,terms.length-1));
   const cg=terms[GCARD.i];
   const study=cg?`<div class="card lux" style="margin-bottom:14px;text-align:center;padding:20px 16px;touch-action:pan-y" ontouchstart="APP.gcTS(event)" ontouchend="APP.gcTE(event)" onclick="APP.gcFlip()">
-    <div class="row" style="margin-bottom:8px"><span class="dim" style="font-size:11px">${GCARD.i+1} / ${terms.length} · swipe ‹ ›</span>
-      ${(DB.glossRead||{})[cg.id]?`<span class="pill ok" style="margin:0;font-size:10.5px">read ✓</span>`:`<button class="btn small ghost" style="font-size:11px;padding:4px 9px" onclick="event.stopPropagation();DB.glossRead=DB.glossRead||{};DB.glossRead['${cg.id}']=Date.now();saveLocal();render()">✓ read</button>`}</div>
+    <div class="row" style="margin-bottom:8px"><span class="dim" style="font-size:11px">${GCARD.i+1} / ${terms.length} · swipe ‹ › · loops</span>
+      <span style="display:flex;gap:6px;align-items:center">
+      <button class="gfavbtn ${(DB.glossFavs||{})[cg.id]?"on":""}" style="padding:4px 10px;font-size:11px" onclick="event.stopPropagation();APP.glossFav('${cg.id}')">${(DB.glossFavs||{})[cg.id]?"★":"☆"}</button>
+      ${(DB.glossRead||{})[cg.id]?`<span class="pill ok" style="margin:0;font-size:10.5px">read ✓</span>`:`<button class="btn small ghost" style="font-size:11px;padding:4px 9px" onclick="event.stopPropagation();DB.glossRead=DB.glossRead||{};DB.glossRead['${cg.id}']=Date.now();saveLocal();render()">✓ read</button>`}</span></div>
+    <span class="gcatchip">${esc(cg.cat||"General")}</span>
     <h3 style="font-size:17.5px;margin-bottom:8px">${esc(cg.term)}</h3>
-    ${GCARD.flip?`<div class="prose" style="font-size:14px;text-align:left">${md(cg.def)}</div>`:`<p class="dim" style="font-size:12px">tap to reveal</p>`}
+    ${GCARD.flip?`<div class="prose" style="font-size:14px;text-align:left">${md(cg.def)}</div>${glossExtra(cg)}`:`<p class="dim" style="font-size:12px">tap to reveal</p>`}
   </div>`:"";
-  return `<div class="chips" style="margin-bottom:8px">${GSORTS.map(([id,name])=>`<button class="chip ${GSORT===id?"active":""}" onclick="APP.glossSort('${id}')">${name}</button>`).join("")}</div>
-  ${study}
+  return `${study}
   <div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
-    <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
+    ${glossSortSel()}</div>
   ${terms.slice(0,80).map(g=>{
     const read=(DB.glossRead||{})[g.id];
-    return `<div class="glossitem"><div class="row" style="cursor:pointer" onclick="APP.glossOpen('${g.id}')">
+    return `<div class="glossitem"><div class="row" style="cursor:pointer" onclick="APP.glossFullAt('${g.id}')">
     <h4>${read?'<span class="gread">✓</span>':""}${esc(g.term)}</h4><span class="gcaret">${GLOSSOPEN[g.id]?"▾":"▸"}</span></div>
     ${GLOSSOPEN[g.id]?`${g.img?`<img src="${esc(g.img)}" alt="" loading="lazy" style="max-width:100%;border-radius:12px;border:1px solid var(--line2);margin:8px 0">`:""}<p>${esc(g.def)}</p>
     <div class="btnrow" style="margin-top:8px">
@@ -1300,11 +1310,20 @@ function glossSorted(terms){
   const t=terms.slice();
   if(GSORT==="az")t.sort((a,b)=>a.term.localeCompare(b.term));
   else if(GSORT==="unread")t.sort((a,b)=>(!!(DB.glossRead||{})[a.id]-!!(DB.glossRead||{})[b.id])||a.term.localeCompare(b.term));
+  else if(GSORT==="favs")t.sort((a,b)=>(!!(DB.glossFavs||{})[b.id]-!!(DB.glossFavs||{})[a.id])||a.term.localeCompare(b.term));
   else if(GSORT==="newest")t.sort((a,b)=>(b.verified||"").localeCompare(a.verified||""));
   else if(GSORT==="shuffle")return glossShuffle(t);
   return t;
 }
-const GSORTS=[["az","A–Z"],["unread","Unread first"],["newest","Newest"],["shuffle","Shuffle"]];
+const GSORTS=[["az","A–Z"],["unread","Unread first"],["favs","★ Favorites first"],["newest","Newest"],["shuffle","Shuffle"]];
+function glossSortSel(extra){
+  return `<select class="addbtn" style="width:auto;padding:0 10px;font-size:12.5px;font-weight:600;appearance:none;-webkit-appearance:none;${extra||""}" onchange="APP.glossSort(this.value)" aria-label="Sort order">
+    ${GSORTS.map(([id,name])=>`<option value="${id}" ${GSORT===id?"selected":""}>⇅ ${name}</option>`).join("")}</select>`;
+}
+function glossExtra(g){
+  return `${g.ex?`<div class="gexbox">📌 <strong>Example:</strong> ${esc(g.ex)}</div>`:""}
+  ${g.why?`<div class="gwhybox">💡 <strong>Why it matters:</strong> ${esc(g.why)}</div>`:""}`;
+}
 function currentGlossTerms(){
   const q=glossQuery.toLowerCase();
   const sec=GLOSSSEC?glossSections().find(x=>x.id===GLOSSSEC):null;
@@ -1315,20 +1334,25 @@ function vGlossFull(){
   const g=terms[GFULL.i];
   if(!g){GFULL=null;return vGlossTab();}
   const read=(DB.glossRead||{})[g.id];
+  const gfav=!!(DB.glossFavs||{})[g.id];
   return `<div class="gfull">
     <div class="row" style="margin-bottom:12px">
-      <span class="dim" style="font-size:12.5px">${GFULL.i+1} / ${terms.length} · ${esc(g.cat||"")}</span>
-      <span style="display:flex;gap:8px">
-      <button class="hact" style="width:44px;height:44px;font-size:16px" onclick="APP.glossSortCycle()" aria-label="Sort" title="Sort: ${GSORT}">⇅</button>
+      <span class="dim" style="font-size:12.5px">${GFULL.i+1} / ${terms.length}</span>
+      <span style="display:flex;gap:8px;align-items:center">
+      ${glossSortSel("height:44px;border-radius:14px")}
       <button class="hact" style="width:44px;height:44px;font-size:18px" onclick="APP.glossFullClose()" aria-label="Close">✕</button></span></div>
     <div class="pbar" style="margin:0 0 14px"><i style="width:${Math.round((GFULL.i+1)/terms.length*100)}%"></i></div>
-    <div class="gcardbig" onclick="APP.glossFullFlip()">
-      <h2 style="font-size:22px;margin-bottom:14px">${esc(g.term)}</h2>
+    <div class="gcardbig" onclick="APP.glossFullFlip()" ontouchstart="APP.gfTS(event)" ontouchend="APP.gfTE(event)">
+      <span class="gcatchip">${esc(g.cat||"General")}</span>
+      <h2 style="font-size:22px;margin-bottom:12px">${esc(g.term)}</h2>
       ${GFULL.flip?`<div class="prose" style="font-size:15.5px;text-align:left">${md(g.def)}</div>
-        ${g.link?`<a style="color:var(--accent);font-size:13px;margin-top:10px" href="${esc(g.link)}" target="_blank" onclick="event.stopPropagation()">🔗 learn more</a>`:""}`:
-        `<p class="dim" style="font-size:13px">tap to reveal</p>`}
+        ${glossExtra(g)}
+        ${g.link?`<a style="color:var(--accent);font-size:13px;margin-top:10px;display:inline-block" href="${esc(g.link)}" target="_blank" onclick="event.stopPropagation()">🔗 learn more</a>`:""}`:
+        `<p class="dim" style="font-size:13px">tap to reveal · swipe ‹ › to browse</p>`}
     </div>
-    <div class="btnrow" style="margin-top:14px">
+    <div class="btnrow" style="margin-top:12px;justify-content:center">
+      <button class="gfavbtn ${gfav?"on":""}" onclick="APP.glossFav('${g.id}')">${gfav?"★ Card favorite":"☆ Favorite this card"} <span style="font-weight:400;opacity:.75">· glossary only</span></button></div>
+    <div class="btnrow" style="margin-top:8px">
       <button class="btn" style="flex:1" onclick="APP.glossFullNav(-1)">‹ Prev</button>
       ${read?`<span class="pill ok" style="align-self:center">✓</span>`:`<button class="btn ghost" onclick="APP.glossFullRead()">✓ Read</button>`}
       <button class="btn solid" style="flex:1" onclick="APP.glossFullNav(1)">Next ›</button></div>
@@ -1360,6 +1384,7 @@ function glossCarousel(){
   if(!GCAR)GCAR={order:glossShuffle(DATA.glossary.map(g=>g.id)),n:Math.min(20,DATA.glossary.length)};
   const cards=GCAR.order.slice(0,GCAR.n).map(id=>glossCardHTML(DATA.glossary.find(g=>g.id===id))).join("");
   return `<div class="gcar-wrap"><div class="gcar" id="gcar">${cards}</div>
+    <button class="gcar-next" style="right:auto;left:6px" onclick="APP.gcarPrev()" aria-label="Previous card">‹</button>
     <button class="gcar-next" onclick="APP.gcarNext()" aria-label="Next card">›</button></div>`;
 }
 function bindGlossCarousel(){
@@ -1897,10 +1922,11 @@ const APP={
     if(Math.abs(dx)<40)return;
     const q2=glossQuery.toLowerCase();const sec2=GLOSSSEC?glossSections().find(x=>x.id===GLOSSSEC):null;
     const n=glossSorted(DATA.glossary.filter(g=>(!sec2||sec2.cats.includes(g.cat))&&(!q2||g.term.toLowerCase().includes(q2)||g.def.toLowerCase().includes(q2)))).length;
-    if(!GCARD)return;
-    GCARD.i=Math.max(0,Math.min(n-1,GCARD.i+(dx<0?1:-1)));GCARD.flip=false;render();},
+    if(!GCARD||!n)return;
+    GCARD.i=((GCARD.i+(dx<0?1:-1))%n+n)%n;GCARD.flip=false;render();},
   gcFlip(){if(GCARD){GCARD.flip=!GCARD.flip;render();}},
   glossBack(){GLOSSSEC=null;glossQuery="";GCARD=null;nav("gloss");},
+  gcarPrev(){const el=document.getElementById("gcar");if(!el)return;el.scrollBy({left:-el.clientWidth*0.86,behavior:"smooth"});},
   gcarNext(){const el=document.getElementById("gcar");if(!el)return;
     const card=el.querySelector(".gcard");const step=card?card.offsetWidth+12:el.clientWidth*.86;
     el.scrollBy({left:step,behavior:"smooth"});},
@@ -2099,7 +2125,13 @@ const APP={
   glossFull(i){GFULL={terms:currentGlossTerms(),i:i||0,flip:false};if(!GFULL.terms.length){GFULL=null;return toast("No terms here");}render();window.scrollTo(0,0);},
   glossFullClose(){GFULL=null;render();},
   glossFullFlip(){if(GFULL){GFULL.flip=!GFULL.flip;render();}},
-  glossFullNav(d){if(!GFULL)return;GFULL.i=Math.min(GFULL.terms.length-1,Math.max(0,GFULL.i+d));GFULL.flip=false;render();window.scrollTo(0,0);},
+  glossFullNav(d){if(!GFULL)return;const n=GFULL.terms.length;if(!n)return;GFULL.i=((GFULL.i+d)%n+n)%n;GFULL.flip=false;render();window.scrollTo(0,0);},
+  gfTS(e){APP._fx=e.changedTouches?e.changedTouches[0].clientX:null;},
+  gfTE(e){if(APP._fx==null)return;const dx=(e.changedTouches?e.changedTouches[0].clientX:APP._fx)-APP._fx;APP._fx=null;
+    if(Math.abs(dx)<40)return;APP.glossFullNav(dx<0?1:-1);},
+  glossFav(id){DB.glossFavs=DB.glossFavs||{};if(DB.glossFavs[id])delete DB.glossFavs[id];else DB.glossFavs[id]=1;saveLocal();
+    toast(DB.glossFavs[id]?"★ Card favorited — glossary only, separate from your Plan favorites":"Card unfavorited");render();},
+  glossFullAt(id){const terms=currentGlossTerms();const i=terms.findIndex(t=>t.id===id);GFULL={terms,i:Math.max(0,i),flip:true};render();window.scrollTo(0,0);},
   glossFullRead(){if(!GFULL)return;const g=GFULL.terms[GFULL.i];DB.glossRead=DB.glossRead||{};DB.glossRead[g.id]=Date.now();saveLocal();render();},
   glossTermSheet(id){
     const t=(DATA.glossary||[]).find(x=>x.id===id);if(!t)return;
@@ -2107,6 +2139,7 @@ const APP={
     openSheet(`<h3>${esc(t.term)}</h3>
     <p class="dim" style="font-size:12px;margin-bottom:8px">${esc(t.cat||"")}</p>
     <div class="prose" style="font-size:14.5px">${md(t.def)}</div>
+    ${glossExtra(t)}
     <div class="btnrow" style="margin-top:14px">
       ${wasRead?`<span class="pill ok">Read ✓</span>`:`<button class="btn small solid" onclick="DB.glossRead['${t.id}']=Date.now();saveLocal();APP.closeSheet();toast('Marked read ✓')">✓ Mark read</button>`}
       <button class="btn small ghost" onclick="APP.closeSheet();glossQuery='';GLOSSSEC=null;APP.go('gloss')">Open glossary</button></div>`);},
