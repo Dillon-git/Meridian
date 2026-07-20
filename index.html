@@ -265,7 +265,7 @@ details.help a{color:var(--accent)}
   display:flex;align-items:center;justify-content:center;z-index:2}
 .gcar-eyebrow{display:flex;align-items:center;justify-content:space-between;margin:14px 0 2px}
 .dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--accent);margin-left:6px;vertical-align:2px}
-.inboxtile{display:inline-flex;align-items:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.inboxtile{display:inline-flex;align-items:center;justify-content:center;gap:5px;background:var(--accent-soft);color:var(--accent);border-radius:999px;min-width:40px;min-height:36px;padding:6px 13px;font-size:18px;font-weight:600;cursor:pointer}
 
 .tmrbox{font-variant-numeric:tabular-nums;font-size:26px;font-weight:650;color:var(--ink)}
 .heat{display:grid;grid-template-columns:repeat(26,1fr);gap:3px;margin-top:10px}
@@ -358,7 +358,7 @@ nav button{font-size:11.5px}
 <nav id="nav" style="display:none"><div class="inner">
   <button data-v="today"><span class="ico">◉<i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
   <button data-v="library"><span class="ico">▤</span>Learn</button>
-  <button data-v="review"><span class="ico">💼</span>Work</button>
+  <button data-v="review"><span class="ico">💼<i class="navbadge" id="revBadge" style="display:none"></i></span>Work</button>
   <button data-v="more"><span class="ico">≡</span>More</button>
 </div></nav>
 <div class="toast" id="toast"></div>
@@ -798,6 +798,7 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   const coachHtml=`<ul style="margin:4px 0 0 18px">${plan.focus.map(f=>`<li style="margin-bottom:8px;font-size:14px;color:var(--ink2)">${esc(f)}</li>`).join("")}</ul>
     <div class="btnrow" style="margin-top:6px"><button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>`;
   return header("Your day · "+fmtDate())+`
+  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer;margin:2px 0 12px;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 12px 12px 0"><div class="qt" style="font-size:13.5px;font-style:italic">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}
   <div class="card lux" style="margin-top:2px"><div class="ringwrap">${goalRing()}
     <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
     <span class="tmrbox" id="tmr">--:--</span><br>
@@ -819,8 +820,7 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   ${(()=>{const f=favSection();return f?sect("plan.favs","★ Favorites",f,false):"";})()}
   ${(()=>{const w=workContextInner();return w?sect("plan.work","💼 Work context",w,false):"";})()}
   ${sect("plan.coach","🗓 This week's coach",coachHtml,false)}
-  ${(()=>{const nd=newsDigestInner();return nd?sect("plan.news","📰 Briefing",nd,false):"";})()}
-  ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer"><div class="qt">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}`;
+  ${(()=>{const nd=newsDigestInner();return nd?sect("plan.news","📰 Briefing",nd,false):"";})()}`;
 }
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);return m<1?"just now":m<60?m+"m ago":Math.round(m/60)+"h ago";}
 function newSince(){
@@ -1191,7 +1191,10 @@ function vReview(){
       <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button>
       <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button></div>`;
     deskTab=REVTAB;
-    return header("Work")+tabs+vDesk();
+    const dueN=dueUnits().length, freshN=Math.min(newUnits().length,newAllowance());
+    const banner=(dueN+freshN)?`<div class="card tap" style="margin-bottom:12px" onclick="APP.startFlow()"><div class="row">
+      <h3 style="font-size:15px">▶ ${dueN+freshN} to recall — start your session</h3><span class="badge">${dueN+freshN}</span></div></div>`:"";
+    return header("Work")+tabs+banner+vDesk();
   }
   if(!SESSION){
     const due=interleave(dueUnits());
