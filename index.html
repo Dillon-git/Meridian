@@ -442,6 +442,14 @@ nav button{font-size:11.5px}
 .gfavbtn.on{background:color-mix(in srgb,#EF9F27 18%,var(--card))}
 .gcar{touch-action:pan-x;overscroll-behavior-x:contain}
 .gcatchip{display:inline-block;font-size:11px;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:8px;padding:3px 10px;margin-bottom:10px}
+
+/* --- v39 sort drawer --- */
+.sortrow{display:flex;align-items:center;gap:10px;width:100%;padding:13px 12px;border:none;background:none;
+  font-family:var(--sans);font-size:15px;font-weight:550;color:var(--ink);cursor:pointer;border-radius:12px;text-align:left}
+.sortrow .sr-check{margin-left:auto;font-size:16px;color:var(--accent);opacity:0}
+.sortrow.on{background:var(--accent-soft);color:var(--accent)}
+.sortrow.on .sr-check{opacity:1}
+.sortrow:active{background:var(--bg2)}
 </style>
 </head>
 <body>
@@ -456,7 +464,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v38";
+const BUILD="v39";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -1317,8 +1325,7 @@ function glossSorted(terms){
 }
 const GSORTS=[["az","A–Z"],["unread","Unread first"],["favs","★ Favorites first"],["newest","Newest"],["shuffle","Shuffle"]];
 function glossSortSel(extra){
-  return `<select class="addbtn" style="width:auto;padding:0 10px;font-size:12.5px;font-weight:600;appearance:none;-webkit-appearance:none;${extra||""}" onchange="APP.glossSort(this.value)" aria-label="Sort order">
-    ${GSORTS.map(([id,name])=>`<option value="${id}" ${GSORT===id?"selected":""}>⇅ ${name}</option>`).join("")}</select>`;
+  return `<button class="addbtn" style="width:auto;padding:0 12px;font-size:12.5px;font-weight:600;${extra||""}" onclick="APP.glossSortSheet()" aria-label="Sort order">⇅ Sort</button>`;
 }
 function glossExtra(g){
   return `${g.ex?`<div class="gexbox">📌 <strong>Example:</strong> ${esc(g.ex)}</div>`:""}
@@ -1370,13 +1377,13 @@ function defSnippet(def,max){
 }
 function glossCardHTML(g){
   if(!g)return "";
-  return `<div class="gcard">
+  return `<div class="gcard" style="cursor:pointer" onclick="APP.glossFullAt('${g.id}')">
     <div class="gc-cat">${esc(g.cat||"Glossary")}</div>
     <h4>${esc(g.term)}</h4>
     <p>${esc(defSnippet(g.def,230))}</p>
     <div class="gc-foot">
-      ${g.link?`<a href="${esc(g.link)}" target="_blank" rel="noopener">🔗 learn more</a>`:"<span></span>"}
-      <button class="gc-more" onclick="APP.glossCardOpen('${g.id}')" aria-label="More" title="More">⋯</button>
+      ${g.link?`<a href="${esc(g.link)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">🔗 learn more</a>`:"<span></span>"}
+      <button class="gc-more" onclick="event.stopPropagation();APP.glossCardOpen('${g.id}')" aria-label="More" title="More">⋯</button>
     </div></div>`;
 }
 function glossCarousel(){
@@ -2120,7 +2127,12 @@ const APP={
     if(nws.length)out.push(`<div class="eyebrow" style="margin-top:8px">News</div>`+nws.map(n=>
       `<div class="srchhit" onclick="APP.closeSheet();APP.go('news')"><h4>${esc(n.title)}</h4><p>${esc(n.date||"")}</p></div>`).join(""));
     box.innerHTML=out.join("")||`<p class="dim" style="margin-top:8px">No matches for “${esc(q)}”.</p>`;},
-  glossSort(m){GSORT=m;localStorage.setItem("meridian.gsort",m);if(GFULL)GFULL.terms=currentGlossTerms();render();},
+  glossSort(m){GSORT=m;localStorage.setItem("meridian.gsort",m);if(GFULL)GFULL.terms=currentGlossTerms();closeSheet();render();},
+  glossSortSheet(){
+    openSheet(`<h3 style="margin-bottom:2px">Sort order</h3>
+    <p class="dim" style="font-size:12px;margin-bottom:10px">Applies everywhere in the glossary — remembered next time.</p>
+    ${GSORTS.map(([id,name])=>`<button class="sortrow ${GSORT===id?"on":""}" onclick="APP.glossSort('${id}')">
+      <span>${name}</span><span class="sr-check">✓</span></button>`).join("")}`);},
   glossSortCycle(){const ids=GSORTS.map(x=>x[0]);const nx=ids[(ids.indexOf(GSORT)+1)%ids.length];GSORT=nx;localStorage.setItem("meridian.gsort",nx);if(GFULL){GFULL.terms=currentGlossTerms();GFULL.i=0;GFULL.flip=false;}toast("Sort: "+GSORTS.find(x=>x[0]===nx)[1]);render();},
   glossFull(i){GFULL={terms:currentGlossTerms(),i:i||0,flip:false};if(!GFULL.terms.length){GFULL=null;return toast("No terms here");}render();window.scrollTo(0,0);},
   glossFullClose(){GFULL=null;render();},
