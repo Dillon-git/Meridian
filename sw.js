@@ -1,4 +1,4 @@
-const CACHE = "quantumleap-v35";
+const CACHE = "quantumleap-v36";
 const ASSETS = ["./", "./index.html", "./manifest.json", "./icon-180.png", "./icon-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting()));
