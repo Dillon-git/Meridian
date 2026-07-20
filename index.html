@@ -417,6 +417,23 @@ nav button{font-size:11.5px}
 .srow .row{align-items:center}
 .sgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .sgrid2 .srow{margin-bottom:0;padding:10px 11px}
+
+/* --- v37 visual lesson blocks --- */
+.vshead{display:grid;grid-template-columns:1fr 1.6fr 1.6fr;gap:6px;margin-bottom:6px}
+.vshead span{font-size:12px;font-weight:700;text-align:center;padding:6px 4px;border-bottom:2px solid transparent}
+.vsrow{display:grid;grid-template-columns:1fr 1.6fr 1.6fr;gap:6px;margin-bottom:6px}
+.vsrow span{font-size:12px;padding:8px;border-radius:9px;color:var(--ink);line-height:1.4}
+.vsrow .vsa{font-weight:700;color:var(--ink2);background:none;padding:8px 2px;display:flex;align-items:center;font-size:11.5px}
+.steprow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}
+.steprow:last-child{border-bottom:none}
+.stepn{width:24px;height:24px;border-radius:50%;border:2px solid var(--accent);color:var(--accent);font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;flex:none;margin-top:1px}
+.stepr{margin-left:auto;font-size:11.5px;color:#0F6E56;background:color-mix(in srgb,#1D9E75 12%,var(--card));border-radius:8px;padding:4px 9px;white-space:nowrap;flex:none}
+.featrow{display:flex;gap:11px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed var(--line)}
+.featrow:last-child{border-bottom:none}
+.feati{width:34px;height:34px;border-radius:10px;display:inline-flex;align-items:center;justify-content:center;font-size:16px;flex:none}
+.keybox{border:1.5px solid var(--accent);border-radius:12px;padding:10px 13px;font-size:13px;color:var(--ink);background:color-mix(in srgb,var(--accent) 5%,var(--card))}
+.tipbox{border:1.5px dashed #D85A30;border-radius:12px;padding:10px 13px;font-size:13px;color:var(--ink);margin-top:12px;background:color-mix(in srgb,#D85A30 5%,var(--card))}
+.tipbox b{color:#993C1D}
 </style>
 </head>
 <body>
@@ -431,7 +448,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v36";
+const BUILD="v37";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -735,6 +752,7 @@ function md(body,dgs){
     if(dm){
       const dg=dgs&&dgs[+dm[1]];
       if(!dg)return "";
+      if(dg.t==="vs"||dg.t==="steps"||dg.t==="list")return dgHTML(dg);
       return `<div class="card lux dg-inline"><div class="eyebrow">${esc(dg.cap||"How it flows")}</div>${dgSVG(dg)}</div>`;
     }
     if(p.startsWith("## ")){
@@ -767,6 +785,38 @@ function dgBox(x,y,w,h,label,accent){
 }
 function dgArrow(x1,y1,x2,y2){
   return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" style="stroke:var(--accent-dim)" stroke-width="1.2" marker-end="url(#dgA)"/>`;
+}
+const VSCOLS=["#378ADD","#1D9E75"];
+function dgHTML(dg){
+  if(dg.t==="vs"){
+    const [a,b]=dg.cols||["A","B"];
+    return `<div class="card lux" style="padding:14px 12px">
+    ${dg.cap?`<div class="eyebrow" style="text-align:center;margin-bottom:10px">${esc(dg.cap)}</div>`:""}
+    <div class="vshead"><span></span>
+      <span style="color:${VSCOLS[0]};border-color:${VSCOLS[0]}">${esc(a)}</span>
+      <span style="color:${VSCOLS[1]};border-color:${VSCOLS[1]}">${esc(b)}</span></div>
+    ${(dg.rows||[]).map(r=>`<div class="vsrow"><span class="vsa">${esc(r[0])}</span>
+      <span style="background:color-mix(in srgb,${VSCOLS[0]} 8%,var(--card))">${esc(r[1])}</span>
+      <span style="background:color-mix(in srgb,${VSCOLS[1]} 8%,var(--card))">${esc(r[2])}</span></div>`).join("")}
+    ${dg.verdict?`<div class="keybox" style="margin-top:10px">⭐ <strong>Key takeaway:</strong> ${esc(dg.verdict)}</div>`:""}</div>`;
+  }
+  if(dg.t==="steps"){
+    return `<div class="card lux" style="padding:14px 12px">
+    ${dg.cap?`<div class="eyebrow" style="margin-bottom:8px">${esc(dg.cap)}</div>`:""}
+    ${(dg.rows||[]).map((r,i)=>`<div class="steprow">
+      <span class="stepn">${i+1}</span>
+      <span><strong style="font-size:13.5px">${esc(r[0])}</strong>${r[1]?`<br><span style="font-size:12.5px;color:var(--ink2)">${esc(r[1])}</span>`:""}</span>
+      ${r[2]?`<span class="stepr">${esc(r[2])}</span>`:""}</div>`).join("")}</div>`;
+  }
+  if(dg.t==="list"){
+    const cols=["#378ADD","#1D9E75","#D85A30","#7F77DD","#854F0B","#639922","#D4537E","#0C447C"];
+    return `<div class="card lux" style="padding:14px 12px">
+    ${dg.cap?`<div class="eyebrow" style="margin-bottom:8px">${esc(dg.cap)}</div>`:""}
+    ${(dg.rows||[]).map((r,i)=>{const c=cols[i%cols.length];
+      return `<div class="featrow"><span class="feati" style="background:color-mix(in srgb,${c} 15%,var(--card))">${esc(r[0])}</span>
+      <span><strong style="font-size:13.5px;color:${c}">${esc(r[1])}</strong><br><span style="font-size:12.5px;color:var(--ink2)">${esc(r[2]||"")}</span></span></div>`;}).join("")}</div>`;
+  }
+  return "";
 }
 function dgSVG(dg){
   const W=330, bh=48, gap=24;
@@ -1358,7 +1408,8 @@ function vItem(){
     <div class="prose">${md(les.body,dgs)}</div>
     ${trailingDg?`<div class="card lux" style="padding:20px 14px 14px"><div class="eyebrow" style="text-align:center">${esc(trailingDg.cap||"How it flows")}</div>${dgSVG(trailingDg)}</div>`:""}
     ${les.ex?`<div class="takeaways" style="border-color:var(--accent-dim)"><div class="eyebrow" style="color:var(--accent)">In practice — auto finance</div><div class="prose" style="font-size:14.5px">${md(les.ex)}</div></div>`:""}
-    <div class="takeaways"><div class="eyebrow">Keep these</div><ul>${(les.takeaways||[]).map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>
+    <div class="keybox" style="margin-top:14px"><div class="eyebrow" style="color:var(--accent);margin-bottom:6px">⭐ Key takeaways</div><ul style="margin:0 0 0 18px">${(les.takeaways||[]).map(x=>`<li style="margin-bottom:7px;font-size:13.5px">${esc(x)}</li>`).join("")}</ul></div>
+    ${les.tip?`<div class="tipbox"><b>💡 PRO TIP</b> — ${esc(les.tip)}</div>`:""}
     <div class="btnrow"><button class="btn small ghost" onclick="APP.editArtifact('${it.id}','lesson')">Edit lesson</button></div>`;
   }
   const mdKeys=[["summary","Filter summary"],["facts","Fact card"],["note","Structured note"],["memo","Synthesis memo"]];
