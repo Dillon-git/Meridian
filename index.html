@@ -1102,14 +1102,14 @@ function vLibrary(){
     return header("Learn")+tabs+`<div class="mgrid">`+masterCats().map(mc=>{
       const ls=all.filter(it=>(it.cats||[]).some(c=>mc.cats.includes(c)));
       const done=ls.filter(it=>DB.done[it.id]).length;
-      return `<button class="mtile" onclick="APP.libFilter('${mc.id}')">
+      return `<button class="mtile" style="border-left:4px solid ${mc.fg};border-radius:0 16px 16px 0;background:color-mix(in srgb, ${mc.fg} 9%, var(--card))" onclick="APP.libFilter('${mc.id}')">
         <div class="mg" style="background:${mc.bg};color:${mc.fg}">${mc.glyph}</div>
         <h3>${esc(mc.name)}</h3><p>${ls.length} item${ls.length===1?"":"s"} · ${done} done</p>
-        <div class="bar" style="margin-top:8px"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%"></i></div></button>`;
+        <div class="bar" style="margin-top:8px;background:color-mix(in srgb, ${mc.fg} 18%, var(--card))"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%;background:${mc.fg}"></i></div></button>`;
     }).join("")+((DB.userColls||[]).filter(c=>!c.del).map(uc=>{
       const ls=(uc.itemIds||[]).map(id=>item(id)).filter(Boolean);
       const done=ls.filter(it=>DB.done[it.id]).length;
-      return `<button class="mtile" onclick="APP.libFilter('u-${uc.id}')">
+      return `<button class="mtile" style="border-left:4px solid var(--accent);border-radius:0 16px 16px 0;background:color-mix(in srgb, var(--accent) 8%, var(--card))" onclick="APP.libFilter('u-${uc.id}')">
         <div class="mg" style="background:var(--accent-soft);color:var(--accent)">${esc(uc.glyph||"★")}</div>
         <h3>${esc(uc.name)}</h3><p>${ls.length} items · ${done} done</p></button>`;}).join(""))+
     `<button class="mtile" style="border-style:dashed" onclick="APP.newColl()">
@@ -1170,16 +1170,16 @@ function vGlossTab(){
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
     <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
   ${glossCarousel()}
-  <div class="mgrid">${(()=>{const PAL=[{bg:"#E7F0FB",fg:"#2F6FD0"},{bg:"#FBE9E3",fg:"#C94F28"},{bg:"#E4F6EE",fg:"#1D9E75"}];let vi=0;
+  <div class="mgrid">${(()=>{const PAL=["#1D9E75","#7F77DD","#378ADD","#D85A30","#D4537E","#639922","#EF9F27","#0C447C","#993556","#5F5E5A"];let vi=0;
     return secs.map(s=>{
     const terms=DATA.glossary.filter(g=>s.cats.includes(g.cat));
     if(!terms.length)return "";
     const read=terms.filter(g=>(DB.glossRead||{})[g.id]).length;
-    const p=PAL[vi++%3];
-    return `<button class="mtile" onclick="APP.glossSec('${s.id}')">
-      <div class="mtile-head"><div class="mg" style="background:${p.bg};color:${p.fg}">${s.glyph}</div><h3>${esc(s.name)}</h3></div>
+    const c=PAL[vi++%PAL.length];
+    return `<button class="mtile" style="border-left:4px solid ${c};border-radius:0 16px 16px 0;background:color-mix(in srgb, ${c} 9%, var(--card))" onclick="APP.glossSec('${s.id}')">
+      <div class="mtile-head"><div class="mg" style="background:color-mix(in srgb, ${c} 18%, var(--card));color:${c}">${s.glyph}</div><h3>${esc(s.name)}</h3></div>
       <p>${terms.length} terms · ${read} read</p>
-      <div class="bar" style="margin-top:8px"><i style="width:${terms.length?Math.round(read/terms.length*100):0}%"></i></div></button>`;}).join("");})()}</div>`;
+      <div class="bar" style="margin-top:8px;background:color-mix(in srgb, ${c} 18%, var(--card))"><i style="width:${terms.length?Math.round(read/terms.length*100):0}%;background:${c}"></i></div></button>`;}).join("");})()}</div>`;
 }
 function vGloss(){
   const q=glossQuery.toLowerCase();
