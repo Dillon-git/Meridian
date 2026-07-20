@@ -80,12 +80,14 @@ h1,h2,h3{font-weight:650;letter-spacing:-.2px}
 /* nav */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;
   background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
-  border-top:1px solid var(--line2);padding:8px 8px calc(env(safe-area-inset-bottom) + 8px)}
+  border-top:1px solid var(--line2);padding:7px 8px max(env(safe-area-inset-bottom), 6px)}
 nav .inner{max-width:640px;margin:0 auto;display:flex;justify-content:space-around}
 nav button{background:none;border:none;color:var(--ink3);font-family:var(--sans);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;
   letter-spacing:.4px;padding:4px 10px;transition:color .2s}
-nav button .ico{font-size:18px;line-height:1.2;position:relative;display:inline-block}
+nav button .ico{font-size:18px;line-height:1;position:relative;display:inline-flex;align-items:center;justify-content:center;height:24px}
+nav button svg{display:block}
+nav button.active svg{stroke-width:2.2}
 nav button.active{color:var(--accent)}
 .navbadge{position:absolute;top:-6px;right:-10px;background:var(--accent);color:#fff;font-size:10px;font-weight:700;
   line-height:1;padding:2px 4px;border-radius:8px;min-width:14px;text-align:center}
@@ -419,16 +421,16 @@ nav button{font-size:11.5px}
 <body>
 <div id="app"></div>
 <nav id="nav" style="display:none"><div class="inner">
-  <button data-v="today"><span class="ico">◉<i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
-  <button data-v="library"><span class="ico">▤</span>Learn</button>
-  <button data-v="review"><span class="ico">💼</span>Work</button>
-  <button data-v="news"><span class="ico">☰<i class="navbadge" id="newsBadge" style="display:none"></i></span>News</button>
+  <button data-v="today"><span class="ico"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.2"/><circle cx="12" cy="12" r="0.9" fill="currentColor" stroke="none"/></svg><i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
+  <button data-v="library"><span class="ico"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.7 5.3 8.9 4.7 6.7 4.7c-1.1 0-2.2 .2-3.2 .6v13.2c1-.4 2.1-.6 3.2-.6 2.2 0 4 .6 5.3 1.8 1.3-1.2 3.1-1.8 5.3-1.8 1.1 0 2.2 .2 3.2 .6V5.3c-1-.4-2.1-.6-3.2-.6-2.2 0-4 .6-5.3 1.8z"/><path d="M12 6.5v13.2"/></svg></span>Learn</button>
+  <button data-v="review"><span class="ico"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.2" y="7.2" width="17.6" height="12" rx="2.4"/><path d="M8.5 7V5.6A1.6 1.6 0 0 1 10.1 4h3.8a1.6 1.6 0 0 1 1.6 1.6V7"/><path d="M3.2 12.2c2.8 1.1 5.8 1.7 8.8 1.7s6-.6 8.8-1.7"/><path d="M12 12.8v2"/></svg></span>Work</button>
+  <button data-v="news"><span class="ico"><svg viewBox="0 0 24 24" width="23" height="23" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5h13v13.1H5.6A1.6 1.6 0 0 1 4 17V5.5z"/><path d="M17 9h1.6A1.4 1.4 0 0 1 20 10.4V17a1.6 1.6 0 0 1-1.6 1.6H17"/><path d="M7 9h7M7 12.2h7M7 15.4h4.5"/></svg><i class="navbadge" id="newsBadge" style="display:none"></i></span>News</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v33";
+const BUILD="v34";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   return `<span class="tring" style="width:${size}px;height:${size}px;background:conic-gradient(${col} 0 ${pct}%, color-mix(in srgb,${col} 15%,var(--card)) ${pct}% 100%)"><i style="width:${inner}px;height:${inner}px;font-size:${size>34?10.5:9.5}px;color:${col}">${pct}%</i></span>`;
