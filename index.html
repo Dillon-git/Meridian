@@ -351,6 +351,50 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .pchip .k,.trow .tk,.tphead .dim{font-size:12px}
 nav button{font-size:11.5px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+
+/* --- v27 --- */
+.wstrip{display:flex;gap:6px;margin:2px 0 12px;cursor:pointer}
+.wday{flex:1;text-align:center;padding:7px 0 6px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:12px;color:var(--ink3)}
+.wday .dn{font-size:10px;display:block;margin-top:1px}
+.wday.met{background:color-mix(in srgb,#1D9E75 18%,var(--card));border-color:#1D9E75;color:var(--ink)}
+.wday.part{border-color:#5DCAA5}
+.wday.today{background:#0F6E56;border-color:#0F6E56;color:#E1F5EE;font-weight:600}
+.pillrow{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:10px}
+.spill{font-size:11.5px;font-weight:600;border-radius:8px;padding:4px 10px}
+.ttask{display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.ttask:last-of-type{border-bottom:none}
+.ttask .tmin{margin-left:auto;font-size:10.5px;color:var(--ink3)}
+.ttask.done{color:var(--ink3);text-decoration:line-through}
+.tcirc{width:17px;height:17px;border-radius:50%;border:2px solid var(--ink3);flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:11px}
+.ttask.done .tcirc{border-color:#1D9E75;background:#1D9E75;color:#fff}
+.ttask.next .tcirc{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.tring{border-radius:50%;display:flex;align-items:center;justify-content:center;flex:none}
+.tring i{border-radius:50%;background:var(--card);display:flex;align-items:center;justify-content:center;font-style:normal;font-weight:650}
+.gtile{flex:1;text-align:center;border:none;border-radius:12px;padding:9px 4px;cursor:pointer;font-family:var(--sans)}
+.gtile .ge{font-size:20px;display:block;line-height:1.15}
+.gtile .gl{font-size:10.5px;font-weight:700;display:block;margin-top:1px}
+.gtile .gi{font-size:9.5px;display:block;opacity:.75}
+.choice.correct{border:1.5px solid #639922!important;background:color-mix(in srgb,#639922 12%,var(--card))!important}
+.choice.wrong{border:1.5px solid #E24B4A!important;background:color-mix(in srgb,#E24B4A 10%,var(--card))!important}
+.verdict{display:inline-flex;align-items:center;gap:6px;border-radius:10px;padding:6px 12px;font-size:13px;font-weight:700;margin-bottom:10px}
+.mgrid7{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.pday{padding:7px 0;font-size:11.5px;color:var(--ink2);border-radius:8px;min-height:34px}
+.pday .dots{display:flex;gap:2px;justify-content:center;margin-top:2px}
+.pday .dots i{width:4px;height:4px;border-radius:50%;display:block}
+.pday.today{background:#0F6E56;color:#E1F5EE;font-weight:600}
+.schedblk{border-radius:10px;padding:9px 12px;margin-bottom:8px}
+.yourow{display:flex;align-items:center;gap:10px;padding:12px 12px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13.5px}
+.yourow:last-child{border-bottom:none}
+.yourow .yi{font-size:17px;width:24px;text-align:center}
+.yourow .ym{margin-left:auto;font-size:11.5px;color:var(--ink3)}
+.statile{flex:1;border-radius:12px;padding:10px;text-align:center}
+.statile .n{font-size:19px;font-weight:650}
+.statile .l{font-size:10.5px;margin-top:1px}
+.wkbar{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.wkbar .wlab{font-size:12px;flex:1;color:var(--ink)}
+.wkbar .wtrk{flex:2;height:6px;background:var(--bg2);border-radius:3px}
+.wkbar .wtrk i{display:block;height:100%;border-radius:3px}
+.wkbar .wpct{font-size:11px;min-width:32px;text-align:right}
 </style>
 </head>
 <body>
@@ -359,7 +403,7 @@ nav button{font-size:11.5px}
   <button data-v="today"><span class="ico">◉<i class="navbadge" id="newBadge" style="display:none"></i></span>Plan</button>
   <button data-v="library"><span class="ico">▤</span>Learn</button>
   <button data-v="review"><span class="ico">💼<i class="navbadge" id="revBadge" style="display:none"></i></span>Work</button>
-  <button data-v="more"><span class="ico">≡</span>More</button>
+  <button data-v="more"><span class="ico">⬤</span>You</button>
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
@@ -616,6 +660,10 @@ async function listInboxFiles(){
   }catch(e){return [];}
 }
 
+/* ---------- track signature colors ---------- */
+const TRACKCOL={"sp-autofin":"#1D9E75","sp-claude":"#7F77DD","sp-mlsr":"#378ADD","sp-git":"#639922","sp-biz":"#EF9F27","sp-n8n":"#D85A30","sp-proto":"#D4537E","sp-json":"#888780","sp-worktech":"#0C447C"};
+function tcol(id){return TRACKCOL[id]||"#1D9E75";}
+function tsoft(id){return `color-mix(in srgb, ${tcol(id)} 15%, var(--card))`;}
 /* ---------- ui open-state (persists per device) ---------- */
 let UI={};try{UI=JSON.parse(localStorage.getItem("meridian.ui")||"{}");}catch(e){}
 function uiOpen(key,def){return UI[key]===undefined?!!def:!!UI[key];}
@@ -756,7 +804,7 @@ function header(sub){
     <span class="inboxtile" onclick="APP.search()" title="Search everything (press /)">⌕</span>
     <span class="inboxtile" onclick="APP.go('inbox')" title="Capture something new">＋${pend?" "+pend:""}</span>
     <span class="streakpill">🔥 ${DB.meta.streak||0}</span>
-    <span class="dim" style="font-size:14px;cursor:pointer" onclick="APP.settings()"><span class="syncdot ${syncState}"></span>⚙</span></span></div>
+    <span class="dim" style="font-size:14px;cursor:pointer" onclick="APP.go('more')"><span class="syncdot ${syncState}"></span>⚙</span></span></div>
     <div class="datebar">${sub||fmtDate()}</div>`;
 }
 function goalRing(){
@@ -799,13 +847,29 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
     <div class="btnrow" style="margin-top:6px"><button class="btn small ghost" onclick="APP.goalSheet()">🎯 Goals${goals.length?" ("+goals.length+")":""}</button></div>`;
   return header("Your day · "+fmtDate())+`
   ${q?`<div class="quote" onclick="APP.quotes()" style="cursor:pointer;margin:2px 0 12px;padding:10px 14px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:0 12px 12px 0"><div class="qt" style="font-size:13.5px;font-style:italic">“${esc(q.text)}” <span class="qa">— ${esc(q.by)}</span></div></div>`:""}
-  <div class="card lux" style="margin-top:2px"><div class="ringwrap">${goalRing()}
-    <div class="ringlabel"><strong style="font-size:15.5px;color:var(--ink)">Today's session</strong><br>
-    <span class="tmrbox" id="tmr">--:--</span><br>
-    <span style="font-size:12.5px;color:var(--ink3)">${procN?`⏳ ${procN} capture${procN>1?"s":""} processing · `:""}counts while open</span></div></div>
-    <div class="btnrow" style="margin-top:2px"><button class="btn solid" style="flex:1;font-size:15.5px;padding:13px" onclick="APP.startFlow()">▶ Continue${due+fresh||lesson?` — ${due+fresh?due+fresh+" recall":""}${due+fresh&&lesson?" · ":""}${lesson?"1 lesson":""} · ~${Math.max(est,2)} min`:""}</button>
-    <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
-  </div>
+  ${weekStrip()}
+  ${(()=>{
+    const tasks=todayTasks();
+    const mins=Math.round(activeMinToday());
+    const goalDays=[...Array(7)].map((_,i)=>dayMet(todayStr(new Date(Date.now()-i*DAY)))===2).filter(Boolean).length;
+    let g30n=0,g30a=0;for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){g30n+=e.n;g30a+=e.a;}}
+    const ret=g30n?Math.round((1-g30a/g30n)*100):null;
+    const next=tasks.find(t=>!t.done);
+    const show=tasks.slice(0,3);
+    return `<div class="card lux" style="margin-top:2px">
+    <div class="pillrow">
+      <span class="spill" style="background:color-mix(in srgb,#EF9F27 18%,var(--card));color:#854F0B">🔥 ${DB.meta.streak||0} days</span>
+      ${ret!=null?`<span class="spill" style="background:color-mix(in srgb,#1D9E75 16%,var(--card));color:#0F6E56">${ret}% retention</span>`:""}
+      <span class="spill" style="background:var(--accent-soft);color:var(--accent)">${goalDays} of 5 goal days</span>
+      ${procN?`<span class="spill" style="background:var(--bg2);color:var(--ink3)">⏳ ${procN} processing</span>`:""}
+    </div>
+    <div class="row" style="font-size:12.5px;color:var(--ink3);margin-bottom:5px"><span>Today · ${mins}/40 min</span><span class="tmrbox" id="tmr" style="font-size:13px">--:--</span></div>
+    <div class="pbar" style="margin:0 0 10px"><i style="width:${Math.min(100,Math.round(mins/40*100))}%"></i></div>
+    ${show.map(t=>`<div class="ttask ${t.done?"done":""} ${next&&t.id===next.id?"next":""}"><span class="tcirc">${t.done?"✓":""}</span><span>${esc(t.label)}</span><span class="tmin">${t.min}m</span></div>`).join("")}
+    <div class="btnrow" style="margin-top:10px">
+      <button class="btn solid" style="flex:1;font-size:15px;padding:12px" onclick="${next?next.act:"APP.go('library')"}">${next?esc(next.actLabel):"✓ Done for today — free study"}</button>
+      <button class="btn ghost small" onclick="APP.logExternal()">+ Log</button></div>
+    </div>`;})()}
   ${newForYou()}
   ${pend?`<div class="card tap" onclick="APP.go('inbox')"><div class="row"><div><div class="eyebrow">Inbox</div>
     <h3>${pend} item${pend>1?"s":""} awaiting your decision</h3></div><span class="badge">${pend}</span></div></div>`:""}
@@ -823,6 +887,37 @@ function vToday(){ /* the "Plan" tab: Study Planner & Tracker */
   ${(()=>{const nd=newsDigestInner();return nd?sect("plan.news","📰 Briefing",nd,false):"";})()}`;
 }
 function ago(ts){const m=Math.round((Date.now()-ts)/60000);return m<1?"just now":m<60?m+"m ago":Math.round(m/60)+"h ago";}
+function dayMet(k){
+  const m=(DB.meta.minlog||{})[k]||0, r=(DB.meta.revlog||{})[k]||0;
+  return m>=20||r>=10?2:(m||r?1:0);
+}
+function weekStrip(){
+  const names=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+  let out=`<div class="wstrip" onclick="APP.go('planner')" title="Open planner">`;
+  for(let i=6;i>=0;i--){
+    const d=new Date(Date.now()-i*DAY), k=todayStr(d), met=dayMet(k);
+    out+=`<div class="wday ${i===0?"today":met===2?"met":met===1?"part":""}">${d.getDate()}<span class="dn">${names[d.getDay()]}</span></div>`;
+  }
+  return out+`</div>`;
+}
+function todayTasks(){
+  const due=dueUnits().length, fresh=Math.min(newUnits().length,newAllowance());
+  const recallN=due+fresh;
+  const reviewedToday=(DB.meta.revlog||{})[todayStr()]||0;
+  const lesson=nextLessonItem();
+  const ch=DATA.challenges.length?DATA.challenges[doyIndex(DATA.challenges.length)]:null;
+  const chDone=!!DB.done["challenge-"+todayStr()];
+  const t=[];
+  t.push({id:"recall",label:recallN?`Recall ${recallN} card${recallN>1?"s":""}`:"Recall session",min:Math.max(2,Math.round(recallN*0.5)),done:recallN===0&&reviewedToday>0,act:"APP.startFlow()",actLabel:`▶ Start recall — ${recallN} card${recallN>1?"s":""} (~${Math.max(2,Math.round(recallN*0.5))} min)`});
+  if(lesson){const lm=(artifact(lesson,"lesson")||{}).min||8;
+    t.push({id:"lesson",label:"Lesson: "+lesson.title,min:lm,done:!!DB.done[lesson.id],act:`APP.item('${lesson.id}','today')`,actLabel:`▶ Start lesson (~${lm} min)`});}
+  if(ch)t.push({id:"drill",label:"Daily challenge drill",min:5,done:chDone,act:"APP.drill()",actLabel:"▶ Answer the drill (~5 min)"});
+  const pls=(DATA.studyPlans||[]).map(effPlan).map(pl=>({pl,st:planStats(pl),nx:nextChips(pl,1)[0]})).filter(x=>x.nx&&x.st.done>0).sort((a,b)=>b.st.pct-a.st.pct);
+  if(pls[0])t.push({id:"chip",label:pls[0].nx.t,min:pls[0].nx.min||10,done:false,act:`APP.chip('${pls[0].pl.id}','${pls[0].nx.id}')`,actLabel:`▶ ${pls[0].nx.t.length>34?pls[0].nx.t.slice(0,32)+"…":pls[0].nx.t} (~${pls[0].nx.min||10} min)`});
+  const recall0=t[0];
+  if(recall0.done||recallN===0)t[0].done=recall0.done||reviewedToday>0;
+  return t;
+}
 function newSince(){
   const seen=DB.lastSeen||0;
   const changed=items().filter(it=>!it.proposed&&it.updated&&Date.parse(it.updated)>seen);
@@ -1241,10 +1336,12 @@ function vReview(){
     if(!s.shown){
       controls=a.choices.map((c,i)=>`<button class="choice" onclick="APP.pick(${i})">${esc(c)}</button>`).join("");
     }else{
-      controls=a.choices.map((c,i)=>{
+      const right=s.picked===a.correct, letter=String.fromCharCode(65+a.correct);
+      controls=`<div class="verdict" style="${right?"background:color-mix(in srgb,#639922 15%,var(--card));color:#3B6D11":"background:color-mix(in srgb,#D85A30 14%,var(--card));color:#993C1D"}">${right?"✓ Correct!":"✗ Whoops — "+letter+" is right"}</div>`+
+        a.choices.map((c,i)=>{
         const cls=i===a.correct?"correct":(i===s.picked?"wrong":"");
-        return `<button class="choice ${cls}">${esc(c)}</button>`;}).join("")+
-        (a.why?`<div class="flash" style="min-height:0;padding:12px;text-align:left"><div class="a" style="margin:0;padding:0;border:none">${esc(a.why)}</div></div>`:"")+gradeRow(u);
+        return `<button class="choice ${cls}">${String.fromCharCode(65+i)} · ${esc(c)}${i===a.correct?" ✓":""}</button>`;}).join("")+
+        (a.why?`<div style="margin-top:8px;border-radius:12px;padding:10px 12px;background:color-mix(in srgb,#7F77DD 14%,var(--card))"><span style="font-size:12.5px;color:#534AB7">💡 ${esc(a.why)}</span></div>`:"")+gradeRow(u);
     }
   }else if(u.type==="prompt"||u.type==="drill"){
     const a=u.a;
@@ -1284,11 +1381,10 @@ function vReview(){
   return head+modeTabs+`<div class="card lux flash">${inner}</div>${controls}${missBox}`;
 }
 function gradeRow(u){
-  return `<div class="grade">
-    <button class="g-again" onclick="APP.grade(0)">Again<span>10 min</span></button>
-    <button onclick="APP.grade(1)">Hard<span>${ivPreview(u.id,1)}</span></button>
-    <button class="g-good" onclick="APP.grade(2)">Good<span>${ivPreview(u.id,2)}</span></button>
-    <button class="g-easy" onclick="APP.grade(3)">Easy<span>${ivPreview(u.id,3)}</span></button></div>`;
+  const T=[["😖","Again","10 min","#E24B4A","#A32D2D",0],["😐","Hard",ivPreview(u.id,1),"#EF9F27","#854F0B",1],["🙂","Good",ivPreview(u.id,2),"#1D9E75","#0F6E56",2],["🤩","Easy",ivPreview(u.id,3),"#639922","#3B6D11",3]];
+  return `<div style="display:flex;gap:7px;margin-top:4px">`+T.map(([e,l,iv,c,tc,g])=>
+    `<button class="gtile" style="background:color-mix(in srgb,${c} 15%,var(--card))" onclick="APP.grade(${g})">
+      <span class="ge">${e}</span><span class="gl" style="color:${tc}">${l}</span><span class="gi" style="color:${tc}">${iv}</span></button>`).join("")+`</div>`;
 }
 
 function laneCol(it){const l=LANE_LEGACY[it.lane]||it.lane;return l==="master"?"var(--green)":l==="understand"?"var(--accent)":"var(--amber)";}
@@ -1311,12 +1407,15 @@ function trackTeaser(){
   const act=withNext.filter(x=>x.st.done>0).sort((a,b)=>b.st.pct-a.st.pct);
   const x=(act[0]||withNext[0]);
   if(!x)return "";
+  const show=(act.length?act:withNext).slice(0,2);
   return `<div class="card"><div class="row"><div class="eyebrow">Your tracks</div>
     <button class="btn small ghost" onclick="APP.lib('tracks')">All tracks →</button></div>
-    <div style="margin-top:8px">
-      <div class="row"><strong style="font-size:14px">${esc(x.pl.title)}</strong><span class="dim" style="font-size:12px">${x.st.pct}%</span></div>
-      <div class="pbar" style="margin:5px 0 7px"><i style="width:${x.st.pct}%"></i></div>
-      <button class="btn small solid" onclick="APP.chip('${x.pl.id}','${x.nx.id}')">▶ ${esc(x.nx.t)}</button></div>
+    ${show.map(y=>{const c=tcol(y.pl.id);
+    return `<div style="margin-top:10px;border-left:4px solid ${c};border-radius:0;background:${tsoft(y.pl.id)};padding:10px 12px;display:flex;justify-content:space-between;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0"><div style="font-size:13.5px;font-weight:600">${esc(y.pl.title)}</div>
+      <button class="btn small ghost" style="margin-top:6px;font-size:12px;padding:5px 10px" onclick="APP.chip('${y.pl.id}','${y.nx.id}')">▶ ${esc(y.nx.t.length>34?y.nx.t.slice(0,32)+"…":y.nx.t)}</button></div>
+      <span class="tring" style="width:42px;height:42px;background:conic-gradient(${c} 0 ${y.st.pct}%, color-mix(in srgb,${c} 18%,var(--card)) ${y.st.pct}% 100%)"><i style="width:31px;height:31px;font-size:10.5px;color:${c}">${y.st.pct}%</i></span>
+    </div>`;}).join("")}
   </div>`;
 }
 /* ---------- Study plan ---------- */
@@ -1376,11 +1475,11 @@ function planSection(){
     const open=!!PLANOPEN[pl.id];
     if(!open){
       const nxc=nextChips(pl,1)[0];
-      html+=`<div class="trackrow">
+      html+=`<div class="trackrow" style="border-left:4px solid ${tcol(pl.id)};border-radius:0;padding-left:12px">
         <div class="row" style="cursor:pointer" onclick="APP.planToggle('${pl.id}')">
           <strong style="font-size:14.5px">${esc(pl.title)}</strong>
-          <span class="dim" style="font-size:12px">${st.pct}% <b style="color:var(--accent)">▸</b></span></div>
-        <div class="pbar"><i style="width:${st.pct}%"></i></div>
+          <span class="dim" style="font-size:12px">${st.pct}% <b style="color:${tcol(pl.id)}">▸</b></span></div>
+        <div class="pbar"><i style="width:${st.pct}%;background:${tcol(pl.id)}"></i></div>
         ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
       </div>`;
       continue;
@@ -1779,6 +1878,12 @@ const APP={
     <p><strong>Local work area (Mac only)</strong> — confidential work material never leaves your computer; the app only ever gets keyword stubs.</p>
     <p><strong>This device</strong> — a local cache + your token. “Erase app data” in Settings clears only this device; the vault restores everything.</p></div>`);},
   seenAll(){DB.lastSeen=Date.now();saveLocal();render();},
+  themeCycle(){const o=["light","dark","auto"];const cur=themePref();const nx=o[(o.indexOf(cur)+1)%3];localStorage.setItem("meridian.theme",nx);applyTheme();toast("Appearance: "+nx);render();},
+  connSheet(){openSheet(`<h3>Vault connection</h3>
+    <label class="f">GitHub token</label><input type="password" id="stok" value="${esc(token())}" autocomplete="off">
+    <label class="f">Repository (owner/repo)</label><input type="text" id="srepo" value="${esc(repo())}">
+    <button class="btn solid setbtn" style="text-align:center;margin-top:10px" onclick="APP.saveSettings()">Save &amp; sync now</button>
+    <p class="dim" style="font-size:12px;margin-top:8px">Last sync: ${DB.updatedAt?ago(DB.updatedAt):"never"}</p>`);},
   uiTog(key,open){UI[key]=!!open;try{localStorage.setItem("meridian.ui",JSON.stringify(UI));}catch(e){}},
   capLane(id){APP.snapshotCap();CAPLANE=id;render();},
   snapshotCap(){const b=$("#capB"),i=$("#capI");if(b)CAPNOTE=b.value;if(i)CAPINSTR=i.value;},
@@ -2110,7 +2215,7 @@ const APP={
     <button class="btn danger setbtn" onclick="APP.reset()">Erase app data on this device only</button>
     <p class="dim" style="font-size:12px;margin-top:10px">Erasing this device never touches your repo — progress restores on next sign-in.</p>`);},
   saveSettings(){
-    localStorage.setItem("meridian.theme",$("#sth").value);applyTheme();
+    const th=$("#sth");if(th&&th.value){localStorage.setItem("meridian.theme",th.value);applyTheme();}
     localStorage.setItem("meridian.token",$("#stok").value.trim());
     localStorage.setItem("meridian.repo",$("#srepo").value.trim());
     closeSheet();Promise.all([pull(),fetchData()]).then(()=>{render();toast("Synced");});},
@@ -2156,23 +2261,37 @@ window.APP=APP;
 function vMore(){
   const acts=DB.newsActions||{};
   const unread=(DATA.news||[]).filter(n=>!acts[n.id]||acts[n.id].a==="keep").length;
-  const row=(ico,label,fn,meta)=>`<div class="lrow" style="padding:13px 2px"><span style="font-size:18px;width:26px;text-align:center">${ico}</span>
-    <span class="lt" onclick="${fn}">${label}</span>${meta?`<span class="lmeta" style="color:var(--accent)">${meta}</span>`:""}</div>`;
-  return header("More")+`
-  <div class="setsec">Reading</div>
-  <div class="morelist card" style="padding:4px 14px">
-    ${row("📰","News briefings","APP.go('news')",unread?unread+" new":"")}
+  let g30n=0,g30a=0;for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){g30n+=e.n;g30a+=e.a;}}
+  const ret=g30n?Math.round((1-g30a/g30n)*100):null;
+  const syncAge=DB.updatedAt?ago(DB.updatedAt):"—";
+  const row=(ico,label,fn,meta)=>`<div class="yourow" onclick="${fn}"><span class="yi">${ico}</span><span>${label}</span>${meta?`<span class="ym">${meta}</span>`:`<span class="ym">›</span>`}</div>`;
+  const goals=(DB.goals||[]).filter(g=>!g.del).length;
+  return header("You")+`
+  <div style="display:flex;align-items:center;gap:12px;margin:4px 0 12px">
+    <div style="width:46px;height:46px;border-radius:50%;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;font-weight:650;color:var(--accent);font-size:17px">W</div>
+    <div><div style="font-size:15.5px;font-weight:600">Waqas</div>
+    <div style="font-size:11.5px;color:var(--ink3)"><span class="syncdot ${syncState}"></span> synced ${syncAge} · vault connected</div></div>
   </div>
-  <div class="setsec">Progress</div>
-  <div class="morelist card" style="padding:4px 14px">
-    ${row("📊","Stats & progress","APP.go('stats')","")}
-    ${row("🎯","Goals","APP.goalSheet()","")}
+  <div class="pillrow" style="margin-bottom:14px">
+    <span class="spill" style="background:color-mix(in srgb,#EF9F27 18%,var(--card));color:#854F0B">🔥 ${DB.meta.streak||0}</span>
+    ${ret!=null?`<span class="spill" style="background:color-mix(in srgb,#1D9E75 16%,var(--card));color:#0F6E56">${ret}%</span>`:""}
+    <span class="spill" style="background:color-mix(in srgb,#7F77DD 15%,var(--card));color:#534AB7">${DB.meta.xp||0} xp</span>
+  </div>
+  <div class="setsec">Learning</div>
+  <div class="card" style="padding:2px 12px">
+    ${row("📊","Progress","APP.go('stats')","")}
+    ${row("🎯","Goals","APP.goalSheet()",goals?goals+" active":"")}
+    ${row("🗓","Planner","APP.go('planner')","")}
+    ${row("📰","News briefings","APP.go('news')",unread?`<b style="color:var(--accent)">${unread} new</b>`:"")}
   </div>
   <div class="setsec">App</div>
-  <div class="morelist card" style="padding:4px 14px">
-    ${row("📖","How this system works","APP.guide()","")}
+  <div class="card" style="padding:2px 12px">
+    ${row("🎨","Appearance","APP.themeCycle()",themePref())}
+    ${row("🔌","Vault connection","APP.connSheet()","✓")}
     ${row("🔒","Where my data lives","APP.dataMap()","")}
-    ${row("⚙","Settings","APP.settings()","")}
+    ${row("📖","How this system works","APP.guide()","")}
+    ${row("⬇","Back up my progress","APP.exportData()","")}
+    ${row("🗑","Erase app data on this device","APP.reset()","")}
   </div>`;
 }
 function retentionTrend(){
@@ -2194,8 +2313,54 @@ function trackPace(){
     <div class="pbar" style="margin:4px 0 2px"><i style="width:${x.st.pct}%"></i></div></div>`).join("")}</div>`;
 }
 function vStats(){
-  return header("Stats & progress")+`<button class="back" onclick="APP.go('more')">← More</button>`
-    +retentionTrend()+trackPace()+statsBody();
+  const units=unlockedUnits(), mastered=units.filter(u=>DB.srs[u.id]&&(DB.srs[u.id].s||0)>=21).length;
+  let g30n=0,g30a=0;for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){g30n+=e.n;g30a+=e.a;}}
+  const ret=g30n?Math.round((1-g30a/g30n)*100):null;
+  const tiles=`<div style="display:flex;gap:8px;margin-bottom:14px">
+    <div class="statile" style="background:color-mix(in srgb,#1D9E75 15%,var(--card))"><div class="n" style="color:#0F6E56">${ret==null?"—":ret+"%"}</div><div class="l" style="color:#0F6E56">retention 30d</div></div>
+    <div class="statile" style="background:color-mix(in srgb,#EF9F27 16%,var(--card))"><div class="n" style="color:#854F0B">${DB.meta.streak||0}</div><div class="l" style="color:#854F0B">day streak</div></div>
+    <div class="statile" style="background:color-mix(in srgb,#7F77DD 15%,var(--card))"><div class="n" style="color:#534AB7">${mastered}</div><div class="l" style="color:#534AB7">mastered</div></div>
+  </div>`;
+  const cl=DB.meta.catlog||{};
+  const weak=Object.keys(cl).filter(c=>cl[c].n>=5).map(c=>({c,r:Math.round((1-cl[c].a/cl[c].n)*100)})).sort((a,b)=>a.r-b.r).slice(0,5);
+  const weakHtml=weak.length?`<div class="card"><div class="eyebrow">Weakest areas · tap to open</div><div style="margin-top:8px">
+    ${weak.map(w=>{const col=w.r>=85?"#1D9E75":w.r>=70?"#EF9F27":"#E24B4A";
+    return `<div class="wkbar" style="cursor:pointer" onclick="APP.lib('cats');APP.libFilter('${w.c}')">
+      <span class="wlab">${esc(catOf(w.c).name)}</span><span class="wtrk"><i style="width:${w.r}%;background:${col}"></i></span><span class="wpct" style="color:${col}">${w.r}%</span></div>`;}).join("")}</div></div>`:"";
+  return header("Progress")+`<button class="back" onclick="APP.go('more')">← You</button>`
+    +tiles+retentionTrend()+weakHtml+trackPace()+statsBody();
+}
+function plannerSchedule(){
+  const act=(DATA.studyPlans||[]).map(effPlan).map(pl=>({pl,st:planStats(pl)})).filter(x=>x.st.done>0&&x.st.pct<100).sort((a,b)=>b.st.pct-a.st.pct);
+  const blocks=[];
+  if(act[0])blocks.push({days:"Mon · Wed · Fri",dows:[1,3,5],label:act[0].pl.title+" · 1 step each",id:act[0].pl.id});
+  if(act[1])blocks.push({days:"Tue · Thu",dows:[2,4],label:act[1].pl.title+" · 1 step each",id:act[1].pl.id});
+  blocks.push({days:"Sat",dows:[6],label:"Artifact / capstone work · 40 min block",col:"#EF9F27"});
+  blocks.push({days:"Sun 6pm",dows:[0],label:"Weekly review lands · goals check",col:"#D85A30"});
+  return blocks;
+}
+function vPlanner(){
+  const now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  const first=new Date(y,m,1), startDow=(first.getDay()+6)%7, dim=new Date(y,m+1,0).getDate();
+  const monthName=now.toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const sched=plannerSchedule();
+  let grid=`<div class="mgrid7" style="font-size:10.5px;color:var(--ink3);margin-bottom:4px"><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span><span>S</span></div><div class="mgrid7">`;
+  for(let i=0;i<startDow;i++)grid+=`<span></span>`;
+  for(let d=1;d<=dim;d++){
+    const dt=new Date(y,m,d), k=todayStr(dt), isToday=k===todayStr(), past=dt<now&&!isToday;
+    let dots="";
+    if(past){const met=dayMet(k);if(met)dots=`<i style="background:${met===2?"#1D9E75":"#9FE1CB"}"></i>`;}
+    else if(!isToday){const dow=dt.getDay();for(const b of sched){if(b.dows.includes(dow)){dots+=`<i style="background:${b.col||tcol(b.id)}"></i>`;if(dots.length>90)break;}}}
+    grid+=`<span class="pday ${isToday?"today":""}">${d}${dots?`<span class="dots">${dots}</span>`:""}</span>`;
+  }
+  grid+=`</div>`;
+  return header("Planner · "+monthName)+`<button class="back" onclick="APP.go('today')">← Plan</button>
+  <div class="card">${grid}</div>
+  <div class="eyebrow" style="margin:14px 0 8px">This week's schedule</div>
+  ${sched.map(b=>{const c=b.col||tcol(b.id);return `<div class="schedblk" style="background:color-mix(in srgb,${c} 15%,var(--card))">
+    <div style="font-size:12.5px;font-weight:600;color:${c}">${b.days}</div>
+    <div style="font-size:12.5px;color:var(--ink2)">${esc(b.label)}</div></div>`;}).join("")}
+  <p class="dim" style="font-size:11.5px;margin-top:10px">Shaped by your coach plan and active tracks — it updates as you complete steps and set 🎯 goals.</p>`;
 }
 /* ---------- router ---------- */
 function render(){
@@ -2214,12 +2379,13 @@ function render(){
     case "project":html=vProject();break;
     case "gloss":html=vGlossTab();break;
     case "more":html=vMore();break;
+    case "planner":html=vPlanner();break;
     case "stats":html=vStats();break;
     default:html=vToday();
   }
   $("#app").innerHTML=html;
   document.querySelectorAll("nav button").forEach(b=>{
-    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||(VIEW.name==="gloss"&&b.dataset.v==="library")||((VIEW.name==="news"||VIEW.name==="stats")&&b.dataset.v==="more")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
+    b.classList.toggle("active",b.dataset.v===VIEW.name||(VIEW.name==="item"&&b.dataset.v==="library")||(VIEW.name==="gloss"&&b.dataset.v==="library")||((VIEW.name==="news"||VIEW.name==="stats")&&b.dataset.v==="more")||(VIEW.name==="planner"&&b.dataset.v==="today")||((VIEW.name==="note"||VIEW.name==="project")&&b.dataset.v==="review"));
     b.onclick=()=>APP.go(b.dataset.v);
   });
   if(!setup){
