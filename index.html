@@ -80,7 +80,8 @@ h1,h2,h3{font-weight:650;letter-spacing:-.2px}
 /* nav */
 nav{position:fixed;bottom:0;left:0;right:0;z-index:50;
   background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);
-  border-top:1px solid var(--line2);padding:7px 8px max(env(safe-area-inset-bottom), 6px)}
+  border-top:1px solid var(--line2);padding:5px 8px max(env(safe-area-inset-bottom), 4px);transition:transform .25s ease}
+nav.navhide{transform:translateY(110%)}
 nav .inner{max-width:640px;margin:0 auto;display:flex;justify-content:space-around}
 nav button{background:none;border:none;color:var(--ink3);font-family:var(--sans);cursor:pointer;
   display:flex;flex-direction:column;align-items:center;gap:2px;font-size:10.5px;font-weight:600;
@@ -248,7 +249,7 @@ details.help a{color:var(--accent)}
 /* glossary discover carousel */
 .gcar-wrap{position:relative;margin:2px -20px 20px}
 .gcar{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;
-  padding:4px 20px 12px;scrollbar-width:none}
+  padding:4px 8% 12px;scrollbar-width:none}
 .gcar::-webkit-scrollbar{display:none}
 .gcard{scroll-snap-align:center;flex:0 0 84%;background:var(--card);border:1px solid var(--line2);
   box-shadow:var(--shadow);border-radius:18px;padding:18px 18px 16px;display:flex;flex-direction:column;min-height:172px}
@@ -430,10 +431,11 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v34";
+const BUILD="v35";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
-  return `<span class="tring" style="width:${size}px;height:${size}px;background:conic-gradient(${col} 0 ${pct}%, color-mix(in srgb,${col} 15%,var(--card)) ${pct}% 100%)"><i style="width:${inner}px;height:${inner}px;font-size:${size>34?10.5:9.5}px;color:${col}">${pct}%</i></span>`;
+  const lbl=pct>=100?"✓":pct+"%";
+  return `<span class="tring" style="width:${size}px;height:${size}px;background:conic-gradient(${col} 0 ${pct}%, color-mix(in srgb,${col} 15%,var(--card)) ${pct}% 100%)"><i style="width:${inner}px;height:${inner}px;font-size:${pct>=100?(size>34?14:12):(size>34?10.5:9.5)}px;color:${col}">${lbl}</i></span>`;
 }
 function spineRow(col,inner,onclick,extraStyle){
   return `<div class="srow" ${onclick?`onclick="${onclick}"`:""} style="border-left:3px solid ${col};${extraStyle||""}">${inner}</div>`;
@@ -1182,7 +1184,8 @@ function glossSections(){
 function vGlossTab(){
   if(GLOSSSEC||glossQuery)return header("Learn")+learnTabs("gloss")+`<button class="back" onclick="APP.glossBack()">← Sections</button>`+vGloss();
   const secs=glossSections();
-  return header("Learn")+learnTabs("gloss")+`<div class="gloss-head">
+  return header("Learn")+learnTabs("gloss")+`<div class="chips" style="margin-bottom:8px">${GSORTS.map(([id,name])=>`<button class="chip ${GSORT===id?"active":""}" onclick="APP.glossSort('${id}')">${name}</button>`).join("")}</div>
+  <div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
     <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
@@ -1203,7 +1206,17 @@ function vGloss(){
   const q=glossQuery.toLowerCase();
   const sec=GLOSSSEC?glossSections().find(s=>s.id===GLOSSSEC):null;
   const terms=glossSorted(DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q))));
+  if(!GCARD||GCARD.sec!==GLOSSSEC)GCARD={sec:GLOSSSEC,i:0,flip:false};
+  GCARD.i=Math.min(GCARD.i,Math.max(0,terms.length-1));
+  const cg=terms[GCARD.i];
+  const study=cg?`<div class="card lux" style="margin-bottom:14px;text-align:center;padding:20px 16px;touch-action:pan-y" ontouchstart="APP.gcTS(event)" ontouchend="APP.gcTE(event)" onclick="APP.gcFlip()">
+    <div class="row" style="margin-bottom:8px"><span class="dim" style="font-size:11px">${GCARD.i+1} / ${terms.length} · swipe ‹ ›</span>
+      ${(DB.glossRead||{})[cg.id]?`<span class="pill ok" style="margin:0;font-size:10.5px">read ✓</span>`:`<button class="btn small ghost" style="font-size:11px;padding:4px 9px" onclick="event.stopPropagation();DB.glossRead=DB.glossRead||{};DB.glossRead['${cg.id}']=Date.now();saveLocal();render()">✓ read</button>`}</div>
+    <h3 style="font-size:17.5px;margin-bottom:8px">${esc(cg.term)}</h3>
+    ${GCARD.flip?`<div class="prose" style="font-size:14px;text-align:left">${md(cg.def)}</div>`:`<p class="dim" style="font-size:12px">tap to reveal</p>`}
+  </div>`:"";
   return `<div class="chips" style="margin-bottom:8px">${GSORTS.map(([id,name])=>`<button class="chip ${GSORT===id?"active":""}" onclick="APP.glossSort('${id}')">${name}</button>`).join("")}</div>
+  ${study}
   <div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
@@ -1223,7 +1236,7 @@ function vGloss(){
 
 /* ---------- Glossary discover carousel ---------- */
 let GCAR=null;
-let GFULL=null, GSORT=localStorage.getItem("meridian.gsort")||"az";
+let GFULL=null, GCARD=null, GSORT=localStorage.getItem("meridian.gsort")||"az";
 function glossSorted(terms){
   const t=terms.slice();
   if(GSORT==="az")t.sort((a,b)=>a.term.localeCompare(b.term));
@@ -1818,8 +1831,16 @@ const APP={
     setItemState(id,{lane,history:hist});
     delete STAGEVIEW[id];
     closeSheet();toast("Graduated — run 🔬 Full process to generate "+laneName(lane)+" artifacts");render();},
-  glossSec(id){GLOSSSEC=id;glossQuery="";nav("gloss");},
-  glossBack(){GLOSSSEC=null;glossQuery="";nav("gloss");},
+  glossSec(id){GLOSSSEC=id;glossQuery="";GCARD=null;nav("gloss");},
+  gcTS(e){APP._gx=e.changedTouches?e.changedTouches[0].clientX:null;},
+  gcTE(e){if(APP._gx==null)return;const dx=(e.changedTouches?e.changedTouches[0].clientX:APP._gx)-APP._gx;APP._gx=null;
+    if(Math.abs(dx)<40)return;
+    const q2=glossQuery.toLowerCase();const sec2=GLOSSSEC?glossSections().find(x=>x.id===GLOSSSEC):null;
+    const n=glossSorted(DATA.glossary.filter(g=>(!sec2||sec2.cats.includes(g.cat))&&(!q2||g.term.toLowerCase().includes(q2)||g.def.toLowerCase().includes(q2)))).length;
+    if(!GCARD)return;
+    GCARD.i=Math.max(0,Math.min(n-1,GCARD.i+(dx<0?1:-1)));GCARD.flip=false;render();},
+  gcFlip(){if(GCARD){GCARD.flip=!GCARD.flip;render();}},
+  glossBack(){GLOSSSEC=null;glossQuery="";GCARD=null;nav("gloss");},
   gcarNext(){const el=document.getElementById("gcar");if(!el)return;
     const card=el.querySelector(".gcard");const step=card?card.offsetWidth+12:el.clientWidth*.86;
     el.scrollBy({left:step,behavior:"smooth"});},
@@ -2601,6 +2622,16 @@ function render(){
 }
 
 /* ---------- boot ---------- */
+(function(){
+  let lastY=0;
+  window.addEventListener("scroll",()=>{
+    const nv=document.getElementById("nav");if(!nv)return;
+    const y=window.scrollY||0;
+    if(y>lastY+8&&y>80)nv.classList.add("navhide");
+    else if(y<lastY-8||y<40)nv.classList.remove("navhide");
+    lastY=y;
+  },{passive:true});
+})();
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){closeSheet();return;}
   const tag=(e.target&&e.target.tagName||"").toLowerCase();
