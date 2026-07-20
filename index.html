@@ -408,6 +408,12 @@ nav button{font-size:11.5px}
 .newsitem summary .nd{margin-left:auto;font-size:10.5px;color:var(--ink3);font-weight:500;white-space:nowrap}
 .gfull{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
 .gfull .gcardbig{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 20px;overflow:auto}
+
+/* --- v33 spine design --- */
+.srow{background:var(--card);border:1px solid var(--line);border-left-width:3px;border-radius:0 13px 13px 0;padding:12px 13px;margin-bottom:10px;cursor:pointer}
+.srow .row{align-items:center}
+.sgrid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.sgrid2 .srow{margin-bottom:0;padding:10px 11px}
 </style>
 </head>
 <body>
@@ -422,7 +428,14 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v32";
+const BUILD="v33";
+function ringHTML(pct,col,size){
+  size=size||36;const inner=size-9;
+  return `<span class="tring" style="width:${size}px;height:${size}px;background:conic-gradient(${col} 0 ${pct}%, color-mix(in srgb,${col} 15%,var(--card)) ${pct}% 100%)"><i style="width:${inner}px;height:${inner}px;font-size:${size>34?10.5:9.5}px;color:${col}">${pct}%</i></span>`;
+}
+function spineRow(col,inner,onclick,extraStyle){
+  return `<div class="srow" ${onclick?`onclick="${onclick}"`:""} style="border-left:3px solid ${col};${extraStyle||""}">${inner}</div>`;
+}
 /* Repo-backed lanes architecture. Content + state live in a private GitHub repo. */
 "use strict";
 const $=s=>document.querySelector(s);
@@ -1100,22 +1113,23 @@ function vLibrary(){
         <span class="progress-ring">${n}</span></div></div>`;}).join("");
   }
   if(libTab==="cats"&&!libFilter){
-    return header("Learn")+tabs+`<div class="mgrid">`+masterCats().map(mc=>{
+    return header("Learn")+tabs+masterCats().map(mc=>{
       const ls=all.filter(it=>(it.cats||[]).some(c=>mc.cats.includes(c)));
       const done=ls.filter(it=>DB.done[it.id]).length;
-      return `<button class="mtile" style="border-left:4px solid ${mc.fg};border-radius:0 16px 16px 0;background:color-mix(in srgb, ${mc.fg} 16%, var(--card))" onclick="APP.libFilter('${mc.id}')">
-        <div class="mg" style="background:${mc.bg};color:${mc.fg}">${mc.glyph}</div>
-        <h3>${esc(mc.name)}</h3><p>${ls.length} item${ls.length===1?"":"s"} · ${done} done</p>
-        <div class="bar" style="margin-top:8px;background:color-mix(in srgb, ${mc.fg} 18%, var(--card))"><i style="width:${ls.length?Math.round(done/ls.length*100):0}%;background:${mc.fg}"></i></div></button>`;
+      const pct=ls.length?Math.round(done/ls.length*100):0;
+      return spineRow(mc.fg,`<div class="row">
+        <div><div style="font-size:14.5px;font-weight:600">${mc.glyph} ${esc(mc.name)}</div>
+        <div style="font-size:11.5px;color:var(--ink3);margin-top:2px">${ls.length} lesson${ls.length===1?"":"s"} · ${done} done</div></div>
+        ${ringHTML(pct,mc.fg)}</div>`,`APP.libFilter('${mc.id}')`);
     }).join("")+((DB.userColls||[]).filter(c=>!c.del).map(uc=>{
       const ls=(uc.itemIds||[]).map(id=>item(id)).filter(Boolean);
       const done=ls.filter(it=>DB.done[it.id]).length;
-      return `<button class="mtile" style="border-left:4px solid var(--accent);border-radius:0 16px 16px 0;background:color-mix(in srgb, var(--accent) 14%, var(--card))" onclick="APP.libFilter('u-${uc.id}')">
-        <div class="mg" style="background:var(--accent-soft);color:var(--accent)">${esc(uc.glyph||"★")}</div>
-        <h3>${esc(uc.name)}</h3><p>${ls.length} items · ${done} done</p></button>`;}).join(""))+
-    `<button class="mtile" style="border-style:dashed" onclick="APP.newColl()">
-      <div class="mg" style="background:var(--bg2);color:var(--ink3)">＋</div>
-      <h3>New collection</h3><p>your own grouping</p></button></div>`;
+      const pct=ls.length?Math.round(done/ls.length*100):0;
+      return spineRow("var(--accent)",`<div class="row">
+        <div><div style="font-size:14.5px;font-weight:600">${esc(uc.glyph||"★")} ${esc(uc.name)}</div>
+        <div style="font-size:11.5px;color:var(--ink3);margin-top:2px">${ls.length} items · ${done} done</div></div>
+        ${ringHTML(pct,"var(--accent)")}</div>`,`APP.libFilter('u-${uc.id}')`);}).join(""))+
+    `<div class="srow" style="border-style:dashed;border-left-width:1px;text-align:center;color:var(--ink3);font-size:13.5px" onclick="APP.newColl()">＋ New collection — your own grouping</div>`;
   }
   if(libTab==="cats"&&libFilter&&libFilter.startsWith("u-")){
     const uc=(DB.userColls||[]).find(x=>"u-"+x.id===libFilter);
@@ -1171,16 +1185,17 @@ function vGlossTab(){
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
     <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
   ${glossCarousel()}
-  <div class="mgrid">${(()=>{const PAL=["#1D9E75","#7F77DD","#378ADD","#D85A30","#D4537E","#639922","#EF9F27","#0C447C","#993556","#5F5E5A"];let vi=0;
+  <div class="sgrid2">${(()=>{const PAL=["#1D9E75","#7F77DD","#378ADD","#D85A30","#D4537E","#639922","#EF9F27","#0C447C","#993556","#5F5E5A"];let vi=0;
     return secs.map(s=>{
     const terms=DATA.glossary.filter(g=>s.cats.includes(g.cat));
     if(!terms.length)return "";
     const read=terms.filter(g=>(DB.glossRead||{})[g.id]).length;
     const c=PAL[vi++%PAL.length];
-    return `<button class="mtile" style="border-left:4px solid ${c};border-radius:0 16px 16px 0;background:color-mix(in srgb, ${c} 16%, var(--card))" onclick="APP.glossSec('${s.id}')">
-      <div class="mtile-head"><div class="mg" style="background:color-mix(in srgb, ${c} 18%, var(--card));color:${c}">${s.glyph}</div><h3>${esc(s.name)}</h3></div>
-      <p>${terms.length} terms · ${read} read</p>
-      <div class="bar" style="margin-top:8px;background:color-mix(in srgb, ${c} 18%, var(--card))"><i style="width:${terms.length?Math.round(read/terms.length*100):0}%;background:${c}"></i></div></button>`;}).join("");})()}</div>`;
+    const pct=terms.length?Math.round(read/terms.length*100):0;
+    return spineRow(c,`<div class="row" style="gap:8px">
+      <div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:600;line-height:1.25">${s.glyph} ${esc(s.name)}</div>
+      <div style="font-size:10.5px;color:var(--ink3);margin-top:2px">${terms.length} terms · ${read} read</div></div>
+      ${ringHTML(pct,c,32)}</div>`,`APP.glossSec('${s.id}')`);}).join("");})()}</div>`;
 }
 function vGloss(){
   const q=glossQuery.toLowerCase();
@@ -1576,14 +1591,13 @@ function planSection(){
     const open=!!PLANOPEN[pl.id];
     if(!open){
       const nxc=nextChips(pl,1)[0];
-      html+=`<div class="trackrow" data-track="${pl.id}" style="border-left:4px solid ${tcol(pl.id)};background:${tsoft(pl.id)}">
+      html+=`<div class="trackrow srow" data-track="${pl.id}" style="border-left:3px solid ${tcol(pl.id)};background:var(--card);cursor:default">
         <div class="row">
           <span style="display:flex;align-items:center;gap:2px;flex:1;min-width:0;cursor:pointer" onclick="APP.planToggle('${pl.id}')">
             <span class="draghandle" onpointerdown="APP.trackDrag(event,'${pl.id}')" onclick="event.stopPropagation()">⠿</span>
             <strong style="font-size:14.5px">${esc(pl.title)}</strong></span>
-          <span class="dim" style="font-size:12px;white-space:nowrap">${st.pct}% <b style="color:${tcol(pl.id)}">▸</b></span></div>
-        <div class="pbar"><i style="width:${st.pct}%;background:${tcol(pl.id)}"></i></div>
-        ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px;background:var(--card)" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
+          ${ringHTML(st.pct,tcol(pl.id),34)}</div>
+        ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px;margin-top:8px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
       </div>`;
       continue;
     }
