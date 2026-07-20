@@ -329,9 +329,10 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 .favbtn{border:none;background:none;font-size:22px;cursor:pointer;color:var(--amber);padding:2px 6px;line-height:1}
 
 /* --- v24 UX release --- */
-.trackrow{padding:12px 2px;border-bottom:1px solid var(--line)}
-.trackrow:last-child{border-bottom:none}
-.trackrow .pbar{height:3px;margin:7px 0 8px}
+.trackrow{padding:12px 14px;margin-bottom:12px;border-radius:0 14px 14px 0;touch-action:pan-y}
+.trackrow .pbar{height:3px;margin:8px 0 9px;background:rgba(127,127,127,.15)}
+.trackrow.dragging{opacity:.55;transform:scale(.985)}
+.draghandle{cursor:grab;color:var(--ink3);font-size:15px;padding:4px 8px 4px 0;user-select:none;-webkit-user-select:none;touch-action:none}
 .itembar{position:fixed;bottom:calc(env(safe-area-inset-bottom) + 74px);left:50%;transform:translateX(-50%);
   display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:999px;
   padding:7px 10px;box-shadow:0 8px 28px rgba(15,15,30,.16);z-index:40;white-space:nowrap}
@@ -405,7 +406,7 @@ nav button{font-size:11.5px}
 .newsitem summary{list-style:none;cursor:pointer;padding:11px 2px;font-size:14.5px;font-weight:600;color:var(--ink);display:flex;gap:8px;align-items:baseline}
 .newsitem summary::-webkit-details-marker{display:none}
 .newsitem summary .nd{margin-left:auto;font-size:10.5px;color:var(--ink3);font-weight:500;white-space:nowrap}
-.gfull{position:absolute;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:18px 16px calc(env(safe-area-inset-bottom) + 16px)}
+.gfull{position:fixed;inset:0;z-index:60;background:var(--bg);display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px)}
 .gfull .gcardbig{flex:1;border:1px solid var(--line);border-radius:20px;background:var(--card);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:26px 20px;overflow:auto}
 </style>
 </head>
@@ -440,7 +441,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},trackOrder:[],
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -623,6 +624,10 @@ function mergeDB(rem){
   for(const k in (DB.planCustom||{})){const a=out.planCustom[k],b=DB.planCustom[k];
     if(!a||(b.u||0)>=(a.u||0))out.planCustom[k]=b;}
   out.goals=mergeItems(rem.goals,DB.goals);
+  out.favs=Object.assign({},rem.favs||{},DB.favs||{});
+  out.lastSeen=Math.max(rem.lastSeen||0,DB.lastSeen||0);
+  out.caps=((DB.caps&&DB.caps.length?DB.caps:rem.caps)||[]).slice(-20);
+  out.trackOrder=(DB.trackOrder&&DB.trackOrder.length?DB.trackOrder:rem.trackOrder)||[];
   const rl=rem.meta||{},ll=DB.meta;
   out.meta.xp=Math.max(rl.xp||0,ll.xp||0);
   out.meta.revlog=Object.assign({},rl.revlog);for(const d in ll.revlog){out.meta.revlog[d]=Math.max(out.meta.revlog[d]||0,ll.revlog[d]);}
@@ -1179,8 +1184,9 @@ function vGlossTab(){
 function vGloss(){
   const q=glossQuery.toLowerCase();
   const sec=GLOSSSEC?glossSections().find(s=>s.id===GLOSSSEC):null;
-  const terms=DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q)));
-  return `<div class="gloss-head">
+  const terms=glossSorted(DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q))));
+  return `<div class="chips" style="margin-bottom:8px">${GSORTS.map(([id,name])=>`<button class="chip ${GSORT===id?"active":""}" onclick="APP.glossSort('${id}')">${name}</button>`).join("")}</div>
+  <div class="gloss-head">
     <input class="srch" type="text" placeholder="Search ${DATA.glossary.length} terms…" value="${esc(glossQuery)}" oninput="APP.glossSearch(this.value)">
     <button class="addbtn" onclick="APP.addTermReq()" aria-label="Add a term" title="Add a term">＋</button>
     <button class="addbtn" onclick="APP.glossFull(0)" aria-label="Study full screen" title="Study these terms full screen">⛶</button></div>
@@ -1199,11 +1205,20 @@ function vGloss(){
 
 /* ---------- Glossary discover carousel ---------- */
 let GCAR=null;
-let GFULL=null;
+let GFULL=null, GSORT=localStorage.getItem("meridian.gsort")||"az";
+function glossSorted(terms){
+  const t=terms.slice();
+  if(GSORT==="az")t.sort((a,b)=>a.term.localeCompare(b.term));
+  else if(GSORT==="unread")t.sort((a,b)=>(!!(DB.glossRead||{})[a.id]-!!(DB.glossRead||{})[b.id])||a.term.localeCompare(b.term));
+  else if(GSORT==="newest")t.sort((a,b)=>(b.verified||"").localeCompare(a.verified||""));
+  else if(GSORT==="shuffle")return glossShuffle(t);
+  return t;
+}
+const GSORTS=[["az","A–Z"],["unread","Unread first"],["newest","Newest"],["shuffle","Shuffle"]];
 function currentGlossTerms(){
   const q=glossQuery.toLowerCase();
   const sec=GLOSSSEC?glossSections().find(x=>x.id===GLOSSSEC):null;
-  return DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q)));
+  return glossSorted(DATA.glossary.filter(g=>(!sec||sec.cats.includes(g.cat))&&(!q||g.term.toLowerCase().includes(q)||g.def.toLowerCase().includes(q))));
 }
 function vGlossFull(){
   const terms=GFULL.terms;
@@ -1213,7 +1228,9 @@ function vGlossFull(){
   return `<div class="gfull">
     <div class="row" style="margin-bottom:12px">
       <span class="dim" style="font-size:12.5px">${GFULL.i+1} / ${terms.length} · ${esc(g.cat||"")}</span>
-      <button class="hact" style="width:36px;height:36px;font-size:17px" onclick="APP.glossFullClose()" aria-label="Close">✕</button></div>
+      <span style="display:flex;gap:8px">
+      <button class="hact" style="width:44px;height:44px;font-size:16px" onclick="APP.glossSortCycle()" aria-label="Sort" title="Sort: ${GSORT}">⇅</button>
+      <button class="hact" style="width:44px;height:44px;font-size:18px" onclick="APP.glossFullClose()" aria-label="Close">✕</button></span></div>
     <div class="pbar" style="margin:0 0 14px"><i style="width:${Math.round((GFULL.i+1)/terms.length*100)}%"></i></div>
     <div class="gcardbig" onclick="APP.glossFullFlip()">
       <h2 style="font-size:22px;margin-bottom:14px">${esc(g.term)}</h2>
@@ -1359,7 +1376,16 @@ function vReview(){
   }
   if(!SESSION){
     const due=interleave(dueUnits());
-    const fresh=newUnits().slice(0,newAllowance());
+    const pool=newUnits(), allow=newAllowance();
+    const byType={card:[],mcq:[],prompt:[],drill:[]};
+    pool.forEach(u=>{(byType[u.type]=byType[u.type]||[]).push(u);});
+    const fresh=[];const cycle=["card","mcq","card","prompt","card","mcq","drill"];let ci=0;
+    while(fresh.length<Math.min(allow,pool.length)){
+      const t=cycle[ci%cycle.length];ci++;
+      const u=(byType[t]&&byType[t].shift())||pool.find(x=>!fresh.includes(x));
+      if(u&&!fresh.includes(u))fresh.push(u);
+      if(ci>allow*4)break;
+    }
     const q=[...due,...fresh];
     if(!q.length){
       const locked=allUnits().length-unlockedUnits().length;
@@ -1434,6 +1460,8 @@ function vReview(){
       controls=`<button class="btn solid" style="width:100%" onclick="APP.reveal()">Show answer</button>`;
     }
   }
+  const sessMix=(()=>{const c={};s.q.forEach(x=>{c[x.type]=(c[x.type]||0)+1;});
+    return Object.keys(c).map(k=>`${c[k]} ${k==="card"?"recall":k==="mcq"?"quiz":k==="prompt"?"short answer":"scenario"}`).join(" · ");})();
   const modeTabs=u.type==="card"?`<div class="modetabs">
     <button class="${reviewMode()==="flip"?"active":""}" onclick="APP.setMode('flip')">Flip</button>
     <button class="${reviewMode()==="type"?"active":""}" onclick="APP.setMode('type')">Type answer</button></div>`:"";
@@ -1444,7 +1472,7 @@ function vReview(){
     <ul>${(les&&les.takeaways||[]).map(x=>`<li>${esc(x)}</li>`).join("")||"<li>Review the item.</li>"}</ul>
     <button class="btn small ghost" onclick="APP.item('${s.missed.item.id}')">Open item</button></div>`;
   }
-  return head+modeTabs+`<div class="card lux flash">${inner}</div>${controls}${missBox}`;
+  return head+`<p class="dim" style="font-size:11px;margin:-6px 0 8px">Session mix: ${sessMix}</p>`+modeTabs+`<div class="card lux flash">${inner}</div>${controls}${missBox}`;
 }
 function gradeRow(u){
   const T=[["😖","Again","10 min","#E24B4A","#A32D2D",0],["😐","Hard",ivPreview(u.id,1),"#EF9F27","#854F0B",1],["🙂","Good",ivPreview(u.id,2),"#1D9E75","#0F6E56",2],["🤩","Easy",ivPreview(u.id,3),"#639922","#3B6D11",3]];
@@ -1532,8 +1560,14 @@ function nextChips(pl,n){
   for(const ph of pl.phases){for(const c of ph.chips){if(!chipDone(c)){out.push(c);if(out.length>=n)return out;}}}
   return out;
 }
+function orderedPlans(){
+  const pls=(DATA.studyPlans||[]).slice();
+  const ord=DB.trackOrder||[];
+  if(ord.length)pls.sort((a,b)=>{const ia=ord.indexOf(a.id),ib=ord.indexOf(b.id);return (ia<0?999:ia)-(ib<0?999:ib);});
+  return pls;
+}
 function planSection(){
-  const pls=(DATA.studyPlans||[]).map(effPlan);
+  const pls=orderedPlans().map(effPlan);
   if(!pls.length)return `<div class="card"><div class="eyebrow">Study plans</div><div class="body">Ask Claude to "build a study plan for [topic]".</div></div>`;
   let html="";
   for(const pl of pls){
@@ -1541,12 +1575,14 @@ function planSection(){
     const open=!!PLANOPEN[pl.id];
     if(!open){
       const nxc=nextChips(pl,1)[0];
-      html+=`<div class="trackrow" style="border-left:4px solid ${tcol(pl.id)};border-radius:0;padding-left:12px">
-        <div class="row" style="cursor:pointer" onclick="APP.planToggle('${pl.id}')">
-          <strong style="font-size:14.5px">${esc(pl.title)}</strong>
-          <span class="dim" style="font-size:12px">${st.pct}% <b style="color:${tcol(pl.id)}">▸</b></span></div>
+      html+=`<div class="trackrow" data-track="${pl.id}" style="border-left:4px solid ${tcol(pl.id)};background:${tsoft(pl.id)}">
+        <div class="row">
+          <span style="display:flex;align-items:center;gap:2px;flex:1;min-width:0;cursor:pointer" onclick="APP.planToggle('${pl.id}')">
+            <span class="draghandle" onpointerdown="APP.trackDrag(event,'${pl.id}')" onclick="event.stopPropagation()">⠿</span>
+            <strong style="font-size:14.5px">${esc(pl.title)}</strong></span>
+          <span class="dim" style="font-size:12px;white-space:nowrap">${st.pct}% <b style="color:${tcol(pl.id)}">▸</b></span></div>
         <div class="pbar"><i style="width:${st.pct}%;background:${tcol(pl.id)}"></i></div>
-        ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
+        ${nxc?`<button class="btn small ghost" style="font-size:12.5px;padding:6px 12px;background:var(--card)" onclick="APP.chip('${pl.id}','${nxc.id}')">▶ ${esc(nxc.t.length>44?nxc.t.slice(0,42)+"…":nxc.t)}</button>`:`<span class="dim" style="font-size:12px">Complete ✓</span>`}
       </div>`;
       continue;
     }
@@ -1960,6 +1996,8 @@ const APP={
     if(nws.length)out.push(`<div class="eyebrow" style="margin-top:8px">News</div>`+nws.map(n=>
       `<div class="srchhit" onclick="APP.closeSheet();APP.go('news')"><h4>${esc(n.title)}</h4><p>${esc(n.date||"")}</p></div>`).join(""));
     box.innerHTML=out.join("")||`<p class="dim" style="margin-top:8px">No matches for “${esc(q)}”.</p>`;},
+  glossSort(m){GSORT=m;localStorage.setItem("meridian.gsort",m);if(GFULL)GFULL.terms=currentGlossTerms();render();},
+  glossSortCycle(){const ids=GSORTS.map(x=>x[0]);const nx=ids[(ids.indexOf(GSORT)+1)%ids.length];GSORT=nx;localStorage.setItem("meridian.gsort",nx);if(GFULL){GFULL.terms=currentGlossTerms();GFULL.i=0;GFULL.flip=false;}toast("Sort: "+GSORTS.find(x=>x[0]===nx)[1]);render();},
   glossFull(i){GFULL={terms:currentGlossTerms(),i:i||0,flip:false};if(!GFULL.terms.length){GFULL=null;return toast("No terms here");}render();window.scrollTo(0,0);},
   glossFullClose(){GFULL=null;render();},
   glossFullFlip(){if(GFULL){GFULL.flip=!GFULL.flip;render();}},
@@ -2043,6 +2081,28 @@ const APP={
   favToggle(id,el){DB.favs=DB.favs||{};if(DB.favs[id])delete DB.favs[id];else DB.favs[id]=1;saveLocal();toast(DB.favs[id]?"★ Added to favorites":"Removed from favorites");
     if(el){el.textContent=DB.favs[id]?"★":"☆";document.querySelectorAll(".favbtn").forEach(b=>b.textContent=DB.favs[id]?"★":"☆");}else render();},
   phToggle(key,cur){PHOPEN[key]=!cur;render();},
+  trackDrag(e,id){
+    e.preventDefault();
+    const row=e.target.closest(".trackrow");if(!row)return;
+    row.classList.add("dragging");
+    row.setPointerCapture&&row.setPointerCapture(e.pointerId);
+    const move=ev=>{
+      const el=document.elementFromPoint(ev.clientX,ev.clientY);
+      const over=el&&el.closest?el.closest(".trackrow"):null;
+      if(over&&over!==row&&over.parentNode===row.parentNode){
+        const r=over.getBoundingClientRect();
+        if(ev.clientY<r.top+r.height/2)over.parentNode.insertBefore(row,over);
+        else over.parentNode.insertBefore(row,over.nextSibling);
+      }};
+    const up=()=>{
+      document.removeEventListener("pointermove",move);
+      document.removeEventListener("pointerup",up);
+      row.classList.remove("dragging");
+      const order=[...row.parentNode.querySelectorAll(".trackrow")].map(x=>x.dataset.track).filter(Boolean);
+      if(order.length){DB.trackOrder=order;saveLocal();toast("Order saved");}
+    };
+    document.addEventListener("pointermove",move);
+    document.addEventListener("pointerup",up);},
   newTrack(){openSheet(`<h3>New track</h3>
     <p class="muted" style="font-size:13.5px;margin-bottom:10px">Describe the topic — Claude builds the full track (lessons, cards, quiz, phased plan) on the next 🔬 full process.</p>
     <textarea id="ntTopic" placeholder="e.g. SQL for analytics PMs — joins, window functions, real dashboards" style="min-height:70px"></textarea>
