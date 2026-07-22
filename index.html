@@ -452,6 +452,23 @@ nav button{font-size:11.5px}
 .sortrow.on{background:var(--accent-soft);color:var(--accent)}
 .sortrow.on .sr-check{opacity:1}
 .sortrow:active{background:var(--bg2)}
+
+/* --- v41 todo list --- */
+.todo{display:flex;gap:11px;align-items:flex-start;padding:12px 4px;border-bottom:1px solid var(--line)}
+.todo:last-child{border-bottom:none}
+.tcheck{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink3);background:none;cursor:pointer;flex:none;margin-top:1px;font-size:13px;color:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0}
+.todo.tdone .tcheck{background:var(--green);border-color:var(--green)}
+.tbody{flex:1;min-width:0;cursor:pointer}
+.tbody .tt{font-size:14.5px;line-height:1.4}
+.todo.tdone .tt{text-decoration:line-through;color:var(--ink3)}
+.tmeta{font-size:11px;color:var(--ink3);margin-top:2px}
+.ttag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;padding:2px 8px;border-radius:99px;margin-right:6px}
+.ttag.critical{background:var(--red-soft);color:var(--red)}
+.ttag.waiting{background:var(--amber-soft);color:#854F0B}
+.ttag.quick{background:var(--green-soft);color:var(--green)}
+.tmv{display:flex;flex-direction:column;gap:2px;flex:none}
+.tmv button{width:26px;height:22px;border:none;border-radius:7px;background:var(--bg2);color:var(--ink3);font-size:12px;cursor:pointer;line-height:1}
+.tmv button:active{background:var(--accent-soft);color:var(--accent)}
 </style>
 </head>
 <body>
@@ -466,7 +483,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v40";
+const BUILD="v41";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -494,7 +511,7 @@ let DATA={v:3,categories:[],items:[],glossary:[],quotes:[],challenges:[]};
 try{const c=localStorage.getItem("meridian.data");if(c)DATA=JSON.parse(c);}catch(e){}
 
 /* ---------- state ---------- */
-function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},trackOrder:[],glossFavs:{},
+function defaultDB(){return {v:3,updatedAt:0,srs:{},done:{},notes:[],projects:[],custom:[],itemState:{},inboxDecisions:{},newsActions:{},glossRead:{},goals:[],planProg:{},planCustom:{},userColls:[],favs:{},lastSeen:0,caps:[],meetTasks:{},trackOrder:[],glossFavs:{},todos:{},todoOrder:[],
   meta:{streak:0,lastDay:"",xp:0,revlog:{},intake:{},gradelog:{},minlog:{},catlog:{}}};}
 let DB=defaultDB();
 try{const raw=localStorage.getItem("meridian.db");if(raw)DB=Object.assign(defaultDB(),JSON.parse(raw));
@@ -680,6 +697,8 @@ function mergeDB(rem){
   out.newsActions=Object.assign({},rem.newsActions||{},DB.newsActions||{});
   out.glossRead=Object.assign({},rem.glossRead||{},DB.glossRead||{});
   out.meetTasks=Object.assign({},rem.meetTasks||{},DB.meetTasks||{});
+  out.todos=Object.assign({},rem.todos||{},DB.todos||{});
+  out.todoOrder=(DB.todoOrder&&DB.todoOrder.length)?DB.todoOrder:(rem.todoOrder||[]);
   out.glossFavs=Object.assign({},rem.glossFavs||{},DB.glossFavs||{});
   out.planProg=Object.assign({},rem.planProg||{},DB.planProg||{});
   out.userColls=mergeItems(rem.userColls,DB.userColls);
@@ -1497,6 +1516,7 @@ function vReview(){
     const tabs=`<div class="subtabs">
       <button class="${REVTAB==="projects"?"active":""}" onclick="APP.rev('projects')">Projects</button>
       <button class="${REVTAB==="meetings"?"active":""}" onclick="APP.rev('meetings')">Meetings</button>
+      <button class="${REVTAB==="tasks"?"active":""}" onclick="APP.rev('tasks')">Tasks${(()=>{const n=openTodoCount();return n?` <i class="navbadge" style="position:static;display:inline-flex;margin-left:2px">${n}</i>`:"";})()}</button>
       <button class="${REVTAB==="notes"?"active":""}" onclick="APP.rev('notes')">Notes</button></div>`;
     deskTab=REVTAB;
     return header("Work")+tabs+vDesk();
@@ -1757,6 +1777,7 @@ let deskTab="notes";
 function vDesk(){
   const tabs="";
   if(deskTab==="meetings")return vMeetings();
+  if(deskTab==="tasks")return vTodos();
   if(deskTab==="notes"){
     const notes=(DB.notes||[]).filter(n=>!n.del).sort((a,b)=>(b.u||0)-(a.u||0));
     return tabs+`<div class="btnrow" style="margin-bottom:10px"><button class="btn small" onclick="APP.editNote()">＋ New note</button>
@@ -1773,6 +1794,44 @@ function vDesk(){
     <div class="body">${esc(p.summary||"")}</div></div>`).join(""):
     `<div class="empty"><div class="glyph">❖</div><p style="font-size:14px">Ask Claude to feed projects from your meetings.</p></div>`)+
     `<div class="btnrow"><button class="btn" onclick="APP.editProject()">+ New project</button></div>`;
+}
+const TODO_TAGS=[["","None"],["critical","Critical"],["waiting","Waiting"],["quick","Quick win"]];
+function syncTodos(){
+  DB.todos=DB.todos||{};DB.todoOrder=DB.todoOrder||[];
+  for(const day of (MEET||[]))for(const m of (day.meetings||[]))for(const t of (m.tasks||[])){
+    if(!DB.todos[t.id]){DB.todos[t.id]={t:t.t,src:m.title||"Meeting",d:day.date||""};DB.todoOrder.push(t.id);}
+  }
+  // meeting-tab checkboxes count as done here too
+  for(const id of Object.keys(DB.meetTasks||{}))if(DB.todos[id]&&!DB.todos[id].del&&!DB.todos[id].done)DB.todos[id].done=(DB.meetTasks[id].at||Date.now());
+  DB.todoOrder=DB.todoOrder.filter((id,i)=>DB.todos[id]&&DB.todoOrder.indexOf(id)===i);
+}
+function openTodoCount(){syncTodos();return DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&!t.done;}).length;}
+function todoRow(id,idx,openIds){
+  const t=DB.todos[id];
+  const tag=t.tag?`<span class="ttag ${t.tag}">${esc((TODO_TAGS.find(x=>x[0]===t.tag)||[])[1]||t.tag)}</span>`:"";
+  return `<div class="todo ${t.done?"tdone":""}">
+    <button class="tcheck" onclick="APP.todoToggle('${id}')" aria-label="${t.done?"Reopen":"Complete"}">${t.done?"✓":""}</button>
+    <div class="tbody" onclick="APP.todoSheet('${id}')">
+      <div class="tt">${tag}${esc(t.t)}</div>
+      <div class="tmeta">${esc(t.src||"")}${t.d?" · "+esc(t.d):""}${t.done?" · done "+new Date(t.done).toLocaleDateString():""}</div></div>
+    ${!t.done?`<span class="tmv">
+      <button onclick="APP.todoMove('${id}',-1)" aria-label="Move up" ${idx===0?"disabled style='opacity:.3'":""}>▲</button>
+      <button onclick="APP.todoMove('${id}',1)" aria-label="Move down" ${idx===openIds.length-1?"disabled style='opacity:.3'":""}>▼</button></span>`:""}
+  </div>`;
+}
+function vTodos(){
+  syncTodos();
+  const open=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&!t.done;});
+  const done=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&t.done;})
+    .sort((a,b)=>(DB.todos[b].done||0)-(DB.todos[a].done||0));
+  let html=`<div class="row" style="margin-bottom:4px"><span class="eyebrow">To do${open.length?` · ${open.length}`:""}</span>
+    <button class="btn small ghost" onclick="APP.todoAdd()">＋ Add task</button></div>`;
+  html+=open.length?`<div class="card lux" style="padding:4px 12px">${open.map((id,i)=>todoRow(id,i,open)).join("")}</div>`
+    :`<div class="empty" style="padding:26px 16px"><div class="glyph">☑</div><p style="font-size:13.5px">Nothing open. Follow-ups from meeting briefs land here automatically.</p></div>`;
+  if(done.length)html+=`<div class="eyebrow" style="margin:18px 0 4px">Completed · ${done.length}</div>
+    <div class="card" style="padding:4px 12px;opacity:.85">${done.map((id,i)=>todoRow(id,i,done)).join("")}</div>`;
+  html+=`<p class="dim" style="font-size:11.5px;margin-top:12px">Tap a task to edit, tag, or delete. ✓ syncs with the Meetings tab checkboxes.</p>`;
+  return html;
 }
 function vMeetings(){
   const days=(MEET||[]).slice().sort((a,b)=>(b.date||"").localeCompare(a.date||""));
@@ -2100,7 +2159,41 @@ const APP={
       if(VIEW.name==="inbox")render();});
     if(!silent)toast("Refreshing…");},
   capMode(m){APP.snapshotCap();CAPMODE=m;render();},
-  meetTask(id,done){DB.meetTasks=DB.meetTasks||{};if(done)DB.meetTasks[id]={done:1,at:Date.now()};else delete DB.meetTasks[id];saveLocal();render();},
+  meetTask(id,done){DB.meetTasks=DB.meetTasks||{};if(done)DB.meetTasks[id]={done:1,at:Date.now()};else delete DB.meetTasks[id];
+    if(DB.todos&&DB.todos[id]){if(done)DB.todos[id].done=Date.now();else delete DB.todos[id].done;}
+    saveLocal();render();},
+  todoToggle(id){const t=DB.todos[id];if(!t)return;
+    if(t.done){delete t.done;delete (DB.meetTasks||{})[id];}
+    else{t.done=Date.now();if(t.src&&t.src!=="You"){DB.meetTasks=DB.meetTasks||{};DB.meetTasks[id]={done:1,at:t.done};}}
+    saveLocal();render();},
+  todoMove(id,d){syncTodos();
+    const open=DB.todoOrder.filter(x=>{const t=DB.todos[x];return t&&!t.del&&!t.done;});
+    const i=open.indexOf(id),j=i+d;if(i<0||j<0||j>=open.length)return;
+    const a=DB.todoOrder.indexOf(open[i]),b=DB.todoOrder.indexOf(open[j]);
+    [DB.todoOrder[a],DB.todoOrder[b]]=[DB.todoOrder[b],DB.todoOrder[a]];
+    saveLocal();render();},
+  todoAdd(){
+    openSheet(`<h3>New task</h3>
+    <input class="srch" id="todoNew" type="text" placeholder="What needs doing?" style="margin:10px 0">
+    <div class="btnrow"><button class="btn solid" onclick="APP.todoAddSave()">Add</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);
+    setTimeout(()=>{const el=$("#todoNew");if(el)el.focus();},60);},
+  todoAddSave(){const el=$("#todoNew");const txt=(el&&el.value||"").trim();if(!txt)return;
+    const id="td-"+Date.now();DB.todos=DB.todos||{};DB.todoOrder=DB.todoOrder||[];
+    DB.todos[id]={t:txt,src:"You",d:new Date().toISOString().slice(0,10)};
+    DB.todoOrder.unshift(id);saveLocal();closeSheet();render();},
+  todoSheet(id){const t=DB.todos[id];if(!t)return;
+    openSheet(`<h3 style="margin-bottom:8px">Edit task</h3>
+    <textarea class="srch" id="todoEdit" style="min-height:70px;resize:vertical;margin-bottom:10px">${esc(t.t)}</textarea>
+    <div class="eyebrow" style="margin-bottom:6px">Tag</div>
+    <div class="chips" style="margin-bottom:14px">${TODO_TAGS.map(([v,n])=>`<button class="chip ${(t.tag||"")===v?"active":""}" onclick="APP.todoTag('${id}','${v}')">${n}</button>`).join("")}</div>
+    <div class="btnrow"><button class="btn solid" onclick="APP.todoSave('${id}')">Save</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button>
+    <button class="btn danger" style="margin-left:auto" onclick="APP.todoDel('${id}')">Delete</button></div>`);},
+  todoTag(id,v){const t=DB.todos[id];if(!t)return;t.tag=v;const el=$("#todoEdit");if(el)t.t=el.value.trim()||t.t;saveLocal();APP.todoSheet(id);},
+  todoSave(id){const t=DB.todos[id];if(!t)return;const el=$("#todoEdit");const txt=(el&&el.value||"").trim();
+    if(txt)t.t=txt;saveLocal();closeSheet();render();},
+  todoDel(id){const t=DB.todos[id];if(!t)return;t.del=1;saveLocal();closeSheet();render();toast("Task deleted");},
   search(){
     let rec=[];try{rec=JSON.parse(localStorage.getItem("meridian.recentq")||"[]");}catch(e){}
     openSheet(`<h3>Search everything</h3>
