@@ -499,20 +499,24 @@ nav button{font-size:11.5px}
  border:1px solid #c4d7f2;border-radius:6px;padding:3px 8px;height:fit-content}.richnote .sbody{min-width:0}.richnote .sbody .st{font-weight:650;font-size:14.5px}.richnote .sbody .st a{color:#0d1730;text-decoration:none;border-bottom:1.5px solid #c4d7f2}.richnote .sbody .st a:hover{color:#1d4c94}.richnote .smeta{font-size:12px;color:var(--mut);margin:2px 0 3px}.richnote .stype{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
  border-radius:4px;padding:1px 6px;background:#f2f4f7;border:1px solid var(--line);color:var(--mut)}.richnote .swhy{font-size:13px;color:#374151}.richnote .sused{font-size:12px;color:var(--mut);font-style:italic}.richnote .unfiled{margin-top:10px;font-size:12.5px;color:#8a5c07;background:#fff8e6;border:1px dashed #f0d089;
  border-radius:8px;padding:8px 12px}.richnote footer{max-width:1180px;margin:18px auto 0;font-size:12px;color:#8a91a0;text-align:center}.richnote footer a{color:#8a91a0}@media print{.richnote{background:#fff;padding:0}.richnote .back{display:none}.richnote .panel,.richnote .lstep,.richnote header.hd{break-inside:avoid;border-color:#ccc}.richnote details{border-color:#ccc}.richnote details>.ans{display:block!important}}@media (max-width:820px){.richnote .grid{grid-template-columns:1fr}.richnote h1{font-size:23px}.richnote header.hd{padding:20px}.richnote .panel{padding:16px}.richnote .lstep{padding:16px}}
-.richnote{padding:0!important;background:transparent!important;font-size:15px!important}
-.richnote header.hd{padding:15px 15px 14px!important;margin-bottom:14px!important}
-.richnote .grid{gap:12px!important}
-.richnote .panel{padding:15px 15px 13px!important}
-.richnote .lstep{gap:11px!important;padding:15px 15px 14px!important}
-.richnote .lnum{width:26px!important;height:26px!important;font-size:12.5px!important;margin-top:1px!important}
-.richnote .lbody h2{font-size:16px!important}
+.richnote{padding:0!important;background:transparent!important;font-size:15px!important;margin:0 -6px!important}
+.richnote header.hd{padding:13px 12px!important;margin-bottom:12px!important}
+.richnote .grid{gap:11px!important}
+.richnote .panel{padding:13px 12px 11px!important}
+.richnote .lstep{gap:9px!important;padding:13px 12px!important}
+.richnote .lnum{width:23px!important;height:23px!important;font-size:12px!important;margin-top:1px!important}
+.richnote .lbody h2{font-size:15.5px!important}
 .richnote .ex{padding:9px 11px!important;gap:8px!important}
-.richnote .hook{padding:10px 13px!important}
-.richnote blockquote{padding:10px 13px!important}
+.richnote .hook{padding:9px 12px!important}
+.richnote blockquote{padding:9px 12px!important}
 .richnote pre{padding:11px 12px!important}
-.richnote .dia{padding:8px!important}
-.richnote table{font-size:13px!important}
-.richnote th,.richnote td{padding:6px 8px!important}
+.richnote table{font-size:12.5px!important}
+.richnote th,.richnote td{padding:6px 7px!important}
+/* diagrams: tap-to-zoom affordance (pinch is disabled app-wide) */
+.richnote .dia{padding:8px!important;cursor:zoom-in;position:relative}
+.richnote .dia::after{content:"\26F6 tap to zoom";position:absolute;right:8px;bottom:6px;
+ font-size:10px;font-weight:700;color:#5c6577;background:rgba(255,255,255,.85);
+ border:1px solid #e3e6ec;border-radius:6px;padding:2px 6px;pointer-events:none}
 
 /* ===== curriculum browser (v43) ===== */
 .cpill{background:var(--card);border:1px solid var(--line2);border-radius:12px;margin:8px 0;overflow:hidden}
@@ -533,6 +537,17 @@ nav button{font-size:11.5px}
 .clesson{font-size:10px;font-weight:800;color:#2f6fd0;white-space:nowrap}
 .pbadge{font-size:9.5px;font-weight:800;border-radius:4px;padding:1px 5px;white-space:nowrap}
 .pbadge.p0{background:#fdecea;color:#a02012}.pbadge.p1{background:#fef3e0;color:#a5670a}.pbadge.p2{background:#eef1f5;color:#5c6577}
+@media(max-width:640px){#app{padding-left:13px!important;padding-right:13px!important}}
+.cid{font-size:10px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:#1d4c94;background:#eef4fb;border:1px solid #c4d7f2;border-radius:5px;padding:1px 5px;flex:none}
+.cid.dim{color:#9aa2b1;background:#f2f4f7;border-color:#e3e6ec}
+.idchip{font-weight:800;font-family:ui-monospace,Menlo,monospace;color:var(--accent);background:var(--accent-soft);border-radius:5px;padding:1px 6px;font-size:11px}
+#dzoom{position:fixed;inset:0;background:rgba(12,14,22,.94);z-index:300;display:none;flex-direction:column}
+#dzoom.open{display:flex}
+.dzbar{display:flex;justify-content:flex-end;gap:8px;padding:calc(env(safe-area-inset-top) + 8px) 12px 8px}
+.dzbar button{background:#fff;border:0;border-radius:9px;padding:9px 15px;font:inherit;font-size:14px;font-weight:650;cursor:pointer}
+.dzbody{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:8px 8px 20px}
+.dzbody svg{width:96vw;height:auto;max-width:none;background:#fff;border-radius:10px;padding:12px;box-sizing:border-box}
+.dzbody.rot svg{width:auto;height:96vw;transform:rotate(90deg);transform-origin:center}
 
 </style>
 </head>
@@ -546,9 +561,10 @@ nav button{font-size:11.5px}
 </div></nav>
 <div class="toast" id="toast"></div>
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
+<div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v44";
+const BUILD="v45";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -963,6 +979,7 @@ function toast(msg){const t=$("#toast");t.textContent=msg;t.classList.add("show"
 function openSheet(html){$("#sheet").innerHTML=html;$("#modal").classList.add("open");}
 function closeSheet(){$("#modal").classList.remove("open");}
 $("#modal").addEventListener("click",e=>{if(e.target.id==="modal")closeSheet();});
+document.addEventListener("click",e=>{const d=e.target.closest(".richnote .dia");if(d){const svg=d.querySelector("svg");if(svg){$("#dzbody").innerHTML=svg.outerHTML;$("#dzbody").classList.remove("rot");$("#dzoom").classList.add("open");}}});
 function nav(name,p){VIEW={name,p:p||null};render();window.scrollTo(0,0);}
 function fmtDate(){return new Date().toLocaleDateString("en-US",{weekday:"long",month:"long",day:"numeric"});}
 function nextLessonItem(){
@@ -1284,8 +1301,8 @@ function vCurriculum(){
       body=`<div style="padding:0 4px 8px">`+p.subs.map(s=>{
         const rows=s.topics.map(t=>{
           const b=`<span class="pbadge ${t.pri.toLowerCase()}">${t.pri}</span>`;
-          if(t.note)return `<div class="crow lesson" onclick="event.stopPropagation();nav('item','${t.id}')"><span class="cdot on"></span><span class="ctt">${esc(t.t)}</span>${b}<span class="clesson">LESSON ›</span></div>`;
-          return `<div class="crow" onclick="event.stopPropagation();toast('${t.id}: lesson not written yet — ask Claude to author it')"><span class="cdot"></span><span class="ctt dim">${esc(t.t)}</span>${b}</div>`;
+          if(t.note)return `<div class="crow lesson" onclick="event.stopPropagation();nav('item','${t.id}')"><span class="cdot on"></span><span class="cid">${t.id}</span><span class="ctt">${esc(t.t)}</span>${b}<span class="clesson">LESSON ›</span></div>`;
+          return `<div class="crow" onclick="event.stopPropagation();toast('${t.id}: lesson not written yet — ask Claude to author it')"><span class="cdot"></span><span class="cid dim">${t.id}</span><span class="ctt dim">${esc(t.t)}</span>${b}</div>`;
         }).join("");
         return `<div class="csub">${esc(s.code)} · ${esc(s.name)}<span class="csubn">${s.topics.length}</span></div>${rows}`;
       }).join("")+`</div>`;
@@ -1549,7 +1566,7 @@ function vItem(){
   }).join("");
   const backTo=VIEW.from==="today"?["today","← Back to plan"]:["library","← Library"];
   let html=`<div class="reader"><button class="back" onclick="APP.go('${backTo[0]}')">${backTo[1]}</button>
-  <div class="eyebrow">${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
+  <div class="eyebrow">${it.curriculum?`<span class="idchip">${esc(it.id)}</span> `:""}${(it.cats||[]).map(c=>esc(catOf(c).name)).join(" · ")||"Item"}</div>
   <div class="row" style="align-items:flex-start;gap:8px"><h2 style="flex:1">${esc(it.title)}</h2>
     <button class="favbtn" title="Favorite" onclick="APP.favToggle('${it.id}',this)">${(DB.favs||{})[it.id]?"★":"☆"}</button></div>
   <div class="stagenav">${stageBtns}</div>`;
@@ -2075,6 +2092,8 @@ const APP={
   startFlow(){FLOW=true;SESSION=null;REVTAB="session";nav("review");},
   lib(t){libTab=t;libFilter=null;nav("library");},
   curTog(id){CUROPEN[id]=!CUROPEN[id];nav("library");},
+  dzRot(){$("#dzbody").classList.toggle("rot");},
+  dzClose(){$("#dzoom").classList.remove("open");$("#dzbody").innerHTML="";},
   libFilter(id){libFilter=id;nav("library");},
   desk(t){deskTab=t;REVTAB=t;nav("review");},
   rev(t){REVTAB=t==="session"?"projects":t;SESSION=null;nav("review");},
