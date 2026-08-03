@@ -548,7 +548,14 @@ nav button{font-size:11.5px}
 .dzbody{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;padding:8px 8px 20px}
 .dzbody svg{width:96vw;height:auto;max-width:none;background:#fff;border-radius:10px;padding:12px;box-sizing:border-box}
 .dzbody.rot svg{width:auto;height:96vw;transform:rotate(90deg);transform-origin:center}
-
+/* ---- reading-depth toggle: Skim / Understand / Master (derived from one Master note via data-k) ---- */
+.lvltabs{display:flex;gap:6px;margin:2px 0 14px;position:sticky;top:0;z-index:5;background:var(--bg,#f5f6f8);padding:6px 0}
+.lvltabs .lvt{flex:1;padding:8px 6px;border-radius:9px;border:1px solid var(--line,#d5d9e2);background:#fff;color:#5c6577;font-weight:700;font-size:12.5px;cursor:pointer}
+.lvltabs .lvt.on{background:#0d1730;color:#fff;border-color:#0d1730}
+.lvlhint{font-size:11.5px;color:#5c6577;margin:-8px 0 10px;font-style:italic}
+.d-skim .learn,.d-skim .secdiv{display:none}
+.d-skim .richnote [data-k]:not([data-k=takeaway]):not([data-k=numbers]){display:none}
+.d-understand .richnote [data-k=ask],.d-understand .richnote [data-k=wrong],.d-understand .richnote [data-k=analogy],.d-understand .richnote [data-k=test],.d-understand .richnote [data-k=example],.d-understand .richnote [data-k=how],.d-understand .richnote [data-k=rule],.d-understand .richnote [data-k=src]{display:none}
 </style>
 </head>
 <body>
@@ -564,7 +571,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v45";
+const BUILD="v46";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -1581,7 +1588,11 @@ function vItem(){
     html+=`<div class="lede">${les.min} min · ${cards.length} cards ${it.curriculum?"· cited · curriculum":""}</div>`;
     if(it.richHtml){
       /* merged Notes fragment — our renderer is the single authority (diagrams, code, citations, sources) */
-      html+=it.richHtml;
+      if(/data-k=/.test(it.richHtml)){
+        html+=`<div class="lvltabs" id="lvltabs"><button class="lvt" onclick="APP.setLvl('skim',this)">Skim ~15s</button><button class="lvt" onclick="APP.setLvl('understand',this)">Understand</button><button class="lvt on" onclick="APP.setLvl('master',this)">Master</button></div><div class="lvlhint" id="lvlhint"></div><div id="depthwrap" class="d-master">${it.richHtml}</div>`;
+      } else {
+        html+=it.richHtml;
+      }
     } else {
     html+=`
     <div class="prose">${md(les.body,dgs)}</div>
@@ -2653,6 +2664,7 @@ const APP={
   checkTyped(){const el=$("#typedIn");SESSION.typed=el?el.value.trim():"";SESSION.shown=true;render();},
   pick(i){SESSION.picked=i;SESSION.shown=true;render();},
   setMode(m){localStorage.setItem("meridian.mode",m);render();},
+  setLvl(l,btn){const w=document.getElementById("depthwrap");if(w)w.className="d-"+l;for(const b of document.querySelectorAll("#lvltabs .lvt"))b.classList.remove("on");if(btn)btn.classList.add("on");const h={skim:"Skim — the claim, the numbers, the takeaway. ~15s.",understand:"Understand — the walkthrough plus the essentials (vs · do · say). The mental model.",master:"Master — the full note: refutations, analogy, sources, full test bank."};const el=document.getElementById("lvlhint");if(el)el.textContent=h[l]||"";},
   grade(g){
     const u=SESSION.q[SESSION.i];grade(resolveUnit(u),g);SESSION.doneCount++;
     SESSION.missed=(g===0)?resolveUnit(u):null;
