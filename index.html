@@ -499,6 +499,26 @@ nav button{font-size:11.5px}
  border:1px solid #c4d7f2;border-radius:6px;padding:3px 8px;height:fit-content}.richnote .sbody{min-width:0}.richnote .sbody .st{font-weight:650;font-size:14.5px}.richnote .sbody .st a{color:#0d1730;text-decoration:none;border-bottom:1.5px solid #c4d7f2}.richnote .sbody .st a:hover{color:#1d4c94}.richnote .smeta{font-size:12px;color:var(--mut);margin:2px 0 3px}.richnote .stype{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
  border-radius:4px;padding:1px 6px;background:#f2f4f7;border:1px solid var(--line);color:var(--mut)}.richnote .swhy{font-size:13px;color:#374151}.richnote .sused{font-size:12px;color:var(--mut);font-style:italic}.richnote .unfiled{margin-top:10px;font-size:12.5px;color:#8a5c07;background:#fff8e6;border:1px dashed #f0d089;
  border-radius:8px;padding:8px 12px}.richnote footer{max-width:1180px;margin:18px auto 0;font-size:12px;color:#8a91a0;text-align:center}.richnote footer a{color:#8a91a0}@media print{.richnote{background:#fff;padding:0}.richnote .back{display:none}.richnote .panel,.richnote .lstep,.richnote header.hd{break-inside:avoid;border-color:#ccc}.richnote details{border-color:#ccc}.richnote details>.ans{display:block!important}}@media (max-width:820px){.richnote .grid{grid-template-columns:1fr}.richnote h1{font-size:23px}.richnote header.hd{padding:20px}.richnote .panel{padding:16px}.richnote .lstep{padding:16px}}
+/* ===== curriculum browser (v43) ===== */
+.cpill{background:var(--card);border:1px solid var(--line2);border-radius:12px;margin:8px 0;overflow:hidden}
+.cph{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
+.cpn{font-weight:800;color:var(--accent);font-size:12.5px;min-width:20px}
+.cpt{flex:1;font-weight:600;font-size:14.5px;line-height:1.25}
+.cmeta{font-size:11px;color:var(--ink3);white-space:nowrap}
+.cchev{color:var(--ink3);transition:transform .15s;font-size:12px}
+.cchev.o{transform:rotate(90deg)}
+.csub{font-size:11px;font-weight:700;color:var(--ink2);background:var(--bg);border-radius:7px;padding:5px 9px;margin:9px 4px 3px;display:flex;gap:8px;text-transform:uppercase;letter-spacing:.03em}
+.csubn{margin-left:auto;color:var(--ink3)}
+.crow{display:flex;align-items:center;gap:9px;padding:8px 6px;border-bottom:1px solid var(--line2);font-size:13.5px}
+.crow.lesson{cursor:pointer}
+.crow.lesson:active{background:var(--accent-soft)}
+.cdot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
+.cdot.on{background:#2f6fd0}
+.ctt{flex:1;line-height:1.3}.ctt.dim{color:var(--ink3)}
+.clesson{font-size:10px;font-weight:800;color:#2f6fd0;white-space:nowrap}
+.pbadge{font-size:9.5px;font-weight:800;border-radius:4px;padding:1px 5px;white-space:nowrap}
+.pbadge.p0{background:#fdecea;color:#a02012}.pbadge.p1{background:#fef3e0;color:#a5670a}.pbadge.p2{background:#eef1f5;color:#5c6577}
+
 </style>
 </head>
 <body>
@@ -513,7 +533,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v42";
+const BUILD="v43";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -1222,17 +1242,54 @@ function vNews(){
 }
 
 /* ---------- Learn (tracks default) ---------- */
-let libTab="tracks", libFilter=null, glossQuery="";
+let libTab="curric", libFilter=null, glossQuery="";
+let CUROPEN={};
 function learnTabs(cur){
   return `<div class="subtabs">
+    <button class="${cur==="curric"?"active":""}" onclick="APP.lib('curric')">Curriculum</button>
     <button class="${cur==="tracks"?"active":""}" onclick="APP.lib('tracks')">Tracks</button>
     <button class="${cur==="cats"?"active":""}" onclick="APP.lib('cats')">Library</button>
     <button class="${cur==="gloss"?"active":""}" onclick="APP.go('gloss')">Glossary</button></div>`;
 }
+function curTopics(p){return p.subs.reduce((a,s)=>a.concat(s.topics),[]);}
+function vCurriculum(){
+  const cur=(DATA.curriculum&&DATA.curriculum.pillars)||[];
+  if(!cur.length)return `<div class="empty"><div class="glyph">♞</div><h3 style="margin-bottom:6px">Curriculum loading…</h3><p style="font-size:14px">Fully close and reopen the app to fetch the latest data.</p></div>`;
+  let tn=0,tl=0;cur.forEach(p=>curTopics(p).forEach(t=>{tn++;if(t.note)tl++;}));
+  let html=`<div class="card lux" style="padding:13px 15px;margin-bottom:12px">
+    <div style="font-size:14px;font-weight:650">♞ AI-PM Curriculum — your backbone</div>
+    <div style="font-size:12.5px;color:var(--ink2);margin-top:3px">${tl} full lessons written of ${tn} topics · 19 pillars. Tap a pillar to explore; a <b style="color:var(--accent)">LESSON</b> tag means it's written — tap to open the full note.</div></div>`;
+  html+=cur.map(p=>{
+    const ts=curTopics(p);const notes=ts.filter(t=>t.note);
+    const done=notes.filter(t=>DB.done[t.id]).length;
+    const pct=notes.length?Math.round(done/notes.length*100):0;
+    const open=!!CUROPEN[p.id];
+    let body="";
+    if(open){
+      body=`<div style="padding:0 4px 8px">`+p.subs.map(s=>{
+        const rows=s.topics.map(t=>{
+          const b=`<span class="pbadge ${t.pri.toLowerCase()}">${t.pri}</span>`;
+          if(t.note)return `<div class="crow lesson" onclick="event.stopPropagation();nav('item','${t.id}')"><span class="cdot on"></span><span class="ctt">${esc(t.t)}</span>${b}<span class="clesson">LESSON ›</span></div>`;
+          return `<div class="crow" onclick="event.stopPropagation();toast('${t.id}: lesson not written yet — ask Claude to author it')"><span class="cdot"></span><span class="ctt dim">${esc(t.t)}</span>${b}</div>`;
+        }).join("");
+        return `<div class="csub">${esc(s.code)} · ${esc(s.name)}<span class="csubn">${s.topics.length}</span></div>${rows}`;
+      }).join("")+`</div>`;
+    }
+    const meta=notes.length?`${notes.length} lesson${notes.length>1?"s":""} · ${ts.length} topics`:`${ts.length} topics`;
+    return `<div class="cpill"><div class="cph" onclick="APP.curTog('${p.id}')">
+      <span class="cpn">${String(p.n).padStart(2,"0")}</span>
+      <span class="cpt">${esc(p.title)}</span>
+      <span class="cmeta">${meta}</span>
+      ${notes.length?ringHTML(pct,"#2f6fd0",30):""}
+      <span class="cchev ${open?"o":""}">▸</span></div>${body}</div>`;
+  }).join("");
+  return html;
+}
 function vLibrary(){
   if(libTab==="gloss"){libTab="cats";}
-  const tabs=learnTabs(libTab==="tracks"?"tracks":"cats");
+  const tabs=learnTabs(libTab);
   const all=items();
+  if(libTab==="curric")return header("Learn")+tabs+vCurriculum();
   if(libTab==="tracks"){
     return header("Learn")+tabs+planSection()+
     `<button class="btn ghost" style="width:100%;margin:4px 0 20px" onclick="APP.newTrack()">＋ New track — ask Claude to build one</button>`;
@@ -2002,6 +2059,7 @@ const APP={
   go(name,p){if(name==="review")SESSION=null;if(name==="today")FLOW=false;if(name==="library")libFilter=null;nav(name,p);},
   startFlow(){FLOW=true;SESSION=null;REVTAB="session";nav("review");},
   lib(t){libTab=t;libFilter=null;nav("library");},
+  curTog(id){CUROPEN[id]=!CUROPEN[id];nav("library");},
   libFilter(id){libFilter=id;nav("library");},
   desk(t){deskTab=t;REVTAB=t;nav("review");},
   rev(t){REVTAB=t==="session"?"projects":t;SESSION=null;nav("review");},
