@@ -587,7 +587,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v48";
+const BUILD="v49";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -2305,8 +2305,11 @@ const APP={
   closeQuiz(){QZ=null;closeSheet();},
   glossToCard(gid){
     const g=DATA.glossary.find(x=>x.id===gid);if(!g)return;
-    if((DB.custom||[]).some(c=>!c.del&&c.src==="Glossary"&&c.q==="Define: "+g.term))return toast("Already in rotation");
-    DB.custom.push({id:"c"+Date.now(),q:"Define: "+g.term,a:g.def,u:Date.now(),src:"Glossary",track:"gloss"});
+    /* Active-recall card (retrieve the concept AND why it matters), not "Define: X" recognition. */
+    const q=g.term+" — what is it, and why does it matter for an AI PM?";
+    if((DB.custom||[]).some(c=>!c.del&&c.src==="Glossary"&&(c.q===q||c.q==="Define: "+g.term)))return toast("Already in rotation");
+    const a=(g.def||"").trim()+(g.why?"  —  Why it matters: "+g.why.trim():"");
+    DB.custom.push({id:"c"+Date.now(),q,a,u:Date.now(),src:"Glossary",track:"gloss"});
     saveLocal();toast("Added to review rotation");},
   addTermReq(){
     openSheet(`<h3>Add glossary term</h3>
