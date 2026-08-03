@@ -571,7 +571,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v46";
+const BUILD="v47";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -1298,7 +1298,7 @@ function vCurriculum(){
   let html=`<div class="card lux" style="padding:13px 15px;margin-bottom:12px">
     <div style="font-size:14px;font-weight:650">♞ AI-PM Curriculum — your backbone</div>
     <div style="font-size:12.5px;color:var(--ink2);margin-top:3px">${tl} full lessons written of ${tn} topics · 19 pillars. Tap a pillar to explore; a <b style="color:var(--accent)">LESSON</b> tag means it's written — tap to open the full note.</div></div>`;
-  html+=cur.map(p=>{
+  const rp=p=>{
     const ts=curTopics(p);const notes=ts.filter(t=>t.note);
     const done=notes.filter(t=>DB.done[t.id]).length;
     const pct=notes.length?Math.round(done/notes.length*100):0;
@@ -1321,7 +1321,17 @@ function vCurriculum(){
       <span class="cmeta">${meta}</span>
       ${notes.length?ringHTML(pct,"#2f6fd0",30):""}
       <span class="cchev ${open?"o":""}">▸</span></div>${body}</div>`;
-  }).join("");
+  };
+  /* pillars grouped into the 6 themes (same set as QuantumLeap Desktop — keep in sync) */
+  const CURTH=[["AI core",["p01","p02","p03"]],["Quality &amp; trust",["p04","p05"]],["Build &amp; data",["p06","p07","p08"]],["Product craft",["p09","p10","p11","p12"]],["Business &amp; growth",["p13","p14","p15","p16","p17"]],["Leadership &amp; career",["p18","p19"]]];
+  const byId={};cur.forEach(p=>byId[p.id]=p);
+  const themed=new Set(CURTH.flatMap(x=>x[1]));
+  CURTH.concat([["More",cur.filter(p=>!themed.has(p.id)).map(p=>p.id)]]).forEach(([lbl,ids])=>{
+    const ps=ids.map(id=>byId[id]).filter(Boolean);
+    if(!ps.length)return;
+    html+=`<div style="font-size:10px;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--ink3);margin:14px 6px 6px">${lbl}</div>`;
+    html+=ps.map(rp).join("");
+  });
   return html;
 }
 function vLibrary(){
