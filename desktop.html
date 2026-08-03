@@ -84,7 +84,8 @@ a { color: var(--accent); }
   display: inline-flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
 .nav-item .pnum { width: 16px; flex: 0 0 16px; font-size: 10.5px; color: #b8bec6; font-weight: 600; text-align: center; }
 .navtheme { padding: 9px 9px 3px; font-size: 9.5px; font-weight: 700; color: #b8bec6;
-  text-transform: uppercase; letter-spacing: .07em; }
+  text-transform: uppercase; letter-spacing: .07em; display: flex; align-items: center; gap: 6px; }
+.navtheme .tdot { width: 6px; height: 6px; border-radius: 2px; flex: 0 0 6px; opacity: .8; }
 .nav-item .cnt { margin-left: auto; font-size: 11px; color: #a7adb6; }
 .nav-item .cnt.badge { color: #fff; background: var(--accent); border-radius: 20px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; }
 .nav-item .pbar { margin-left: auto; width: 46px; height: 4px; border-radius: 3px; background: #ececf0; overflow: hidden; flex: 0 0 46px; }
@@ -175,8 +176,8 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
   cursor: pointer; border-left: 3px solid transparent; transition: background .12s;
 }
 .trow:hover { background: #f6f7f9; }
-.trow.haslesson { cursor: pointer; }
-.trow.haslesson:hover { border-left-color: var(--accent); }
+.trow.haslesson { cursor: pointer; background: #f2faf5; }
+.trow.haslesson:hover { border-left-color: var(--done); background: #e8f6ee; }
 .trow .tid { font-size: 10.5px; color: #c5c5cc; width: 34px; flex: 0 0 34px; font-weight: 600; }
 .trow .tt { font-size: 12.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trow.nolesson .tt { color: var(--muted); }
@@ -185,9 +186,31 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .pri.P1 { background: #fff8e7; color: var(--stale); }
 .pri.P2 { background: #eef0f3; color: var(--muted); }
 .lessonbadge {
-  font-size: 9.5px; font-weight: 700; letter-spacing: .04em; color: var(--accent);
-  background: var(--accent-soft); border-radius: 4px; padding: 1px 6px; flex: 0 0 auto;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .04em; color: #0a7a44;
+  background: #dcf1e4; border-radius: 4px; padding: 1px 6px; flex: 0 0 auto;
 }
+.bigbarrow { display: flex; align-items: center; gap: 10px; margin: 10px 0 4px; }
+.bigbar { flex: 1; height: 8px; border-radius: 4px; background: #eef0f3; overflow: hidden; }
+.bigbar i { display: block; height: 100%; border-radius: 4px; background: var(--done); }
+.bigbarrow span { font-size: 11px; color: var(--muted); white-space: nowrap; }
+/* focus mode */
+.app.focusmode { grid-template-columns: 1fr; }
+.app.focusmode .sidebar { display: none; }
+.focusbar { display: flex; align-items: center; gap: 10px; margin: -6px 0 14px; padding: 8px 12px;
+  border: 1px solid var(--border); border-left: 3px solid var(--accent); border-radius: 9px;
+  background: #fafbfc; font-size: 12px; color: var(--muted); }
+.focusbar b { color: var(--text); font-weight: 600; }
+.focusbar .fclock { font-variant-numeric: tabular-nums; color: var(--accent); font-weight: 600; }
+.focuslessonbar { position: sticky; bottom: 14px; margin-top: 20px; display: flex; align-items: center;
+  gap: 10px; background: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 10px 14px;
+  box-shadow: var(--shadow); }
+.tickpop { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  font-size: 90px; color: var(--done); pointer-events: none; z-index: 200;
+  animation: tickpop .85s ease-out forwards; text-shadow: 0 4px 24px rgba(12,163,90,.25); }
+@keyframes tickpop { 0%{opacity:0;transform:scale(.4)} 25%{opacity:1;transform:scale(1.12)}
+  45%{transform:scale(1)} 70%{opacity:1} 100%{opacity:0;transform:scale(1.02)} }
+@media (prefers-reduced-motion: reduce){ .tickpop{ display:none; } }
+.mvtag { font-size: 9px; color: var(--stale); background: #fff8e7; border-radius: 4px; padding: 0 4px; }
 .donetick { color: var(--done); font-size: 12px; flex: 0 0 14px; text-align: center; }
 .trow .hoveract { opacity: 0; transition: opacity .12s; }
 .trow:hover .hoveract { opacity: 1; }
@@ -418,7 +441,7 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
    State code (defaultDB/mergeDB/FSRS/units) is ported VERBATIM from index.html —
    any state-key added to mobile mergeDB MUST be mirrored here (harness-checked). */
 "use strict";
-const BUILD="desk-v1";
+const BUILD="desk-v2";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const DAY=86400000;
@@ -552,10 +575,24 @@ function ivPreview(id,g){
   if(!e)return fsInterval(fsS0(G))+" d";
   return fsInterval(fsNext(e,G,Math.max(0,(Date.now()-(e.last||Date.now()))/DAY)).s)+" d";
 }
+/* streak shield: one missed day forgiven per week (ADHD-friendly — a bad day must not zero
+   the streak). Shield state lives in planCustom["ql-flags"] (merge-safe in both apps).
+   KEEP wkKey+bumpStreak BYTE-IDENTICAL with index.html — harness-enforced. */
+function wkKey(){const d=new Date();d.setHours(0,0,0,0);const dow=(d.getDay()+6)%7;d.setDate(d.getDate()-dow);return todayStr(d);}
 function bumpStreak(){
-  const t=todayStr(),y=todayStr(new Date(Date.now()-DAY));
+  const t=todayStr(),y=todayStr(new Date(Date.now()-DAY)),y2=todayStr(new Date(Date.now()-2*DAY));
   if(DB.meta.lastDay===t)return;
-  DB.meta.streak=(DB.meta.lastDay===y)?(DB.meta.streak||0)+1:1;
+  if(DB.meta.lastDay===y){DB.meta.streak=(DB.meta.streak||0)+1;}
+  else if(DB.meta.lastDay===y2){
+    DB.planCustom=DB.planCustom||{};
+    const f=DB.planCustom["ql-flags"]||{v:1,u:0};
+    if(f.shieldWeek!==wkKey()){
+      f.shieldWeek=wkKey();f.u=Date.now();DB.planCustom["ql-flags"]=f;
+      DB.meta.streak=(DB.meta.streak||0)+1;
+      try{toast("🛡 Streak shield used — yesterday is forgiven");}catch(e){}
+    }else{DB.meta.streak=1;}
+  }
+  else{DB.meta.streak=1;}
   DB.meta.lastDay=t;
 }
 
@@ -900,6 +937,47 @@ function autoPlanWeek(){
   if(added)schedSave(s);
   return {added};
 }
+/* rollover without shame: unfinished past blocks quietly move to today (↻ tag, no guilt pile) */
+function rolloverSched(){
+  const s=schedGet(),t=todayStr();let ch=false;
+  (s.items||[]).forEach(x=>{
+    if(x.day<t){
+      const isDone=x.type==="lesson"?!!DB.done[x.ref]:!!x.done;
+      if(!isDone){if(!x.mv)x.mv=x.day;x.day=t;x.u=Date.now();ch=true;}
+    }});
+  if(ch)schedSave(s);
+  return ch;
+}
+/* focus mode */
+let FOCUS=null,FCLOCK=null;
+function focusLessons(){
+  const s=schedGet(),t=todayStr();
+  return (s.items||[]).filter(x=>x.day===t&&x.type==="lesson"&&x.ref&&!DB.done[x.ref]&&item(x.ref)).map(x=>x.ref);
+}
+function focusEstMin(){
+  const due=dueUnits().length, fresh=Math.min(newUnits().length,newAllowance());
+  const l=focusLessons().reduce((a,r)=>a+lessonMin(item(r)),0);
+  return Math.round((due+fresh)*0.5+l);
+}
+function startFClock(){
+  clearInterval(FCLOCK);
+  FCLOCK=setInterval(()=>{
+    const el=document.querySelector(".fclock");
+    if(!el||!FOCUS)return;
+    const s=Math.floor((Date.now()-FOCUS.t0)/1000);
+    el.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+  },1000);
+}
+function focusBar(){
+  if(!FOCUS)return "";
+  const stage=FOCUS.stage==="review"?(FOCUS.mode==="quick"?"5-minute recall":"Recall"):FOCUS.stage==="lessons"?`Lesson ${FOCUS.li+1} of ${FOCUS.lessons.length}`:"Done";
+  return `<div class="focusbar"><b>◉ Focus</b><span>${esc(stage)}</span><span class="fclock">0:00</span>
+    <span style="flex:1"></span><button class="btn ghost" onclick="APP.focusExit()">✕ Exit <kbd style="font-size:9px;border:1px solid var(--border);border-radius:4px;padding:0 4px;background:#fafafa">Esc</kbd></button></div>`;
+}
+function showTick(txt){
+  const d=document.createElement("div");d.className="tickpop";d.textContent=txt||"✓";
+  document.body.appendChild(d);setTimeout(()=>{try{d.remove();}catch(e){}},900);
+}
 function retention30(){
   let n=0,a=0;
   for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){n+=e.n;a+=e.a;}}
@@ -909,12 +987,12 @@ function retention30(){
 /* ---------- sidebar ---------- */
 /* the 19 pillars grouped into light themes so the pane reads as sections, not one long list */
 const PTHEMES=[
-  ["AI core",["p01","p02","p03"]],
-  ["Quality & trust",["p04","p05"]],
-  ["Build & data",["p06","p07","p08"]],
-  ["Product craft",["p09","p10","p11","p12"]],
-  ["Business & growth",["p13","p14","p15","p16","p17"]],
-  ["Leadership & career",["p18","p19"]]
+  ["AI core",["p01","p02","p03"],"#378ADD"],
+  ["Quality & trust",["p04","p05"],"#1D9E75"],
+  ["Build & data",["p06","p07","p08"],"#D85A30"],
+  ["Product craft",["p09","p10","p11","p12"],"#7c3aed"],
+  ["Business & growth",["p13","p14","p15","p16","p17"],"#EF9F27"],
+  ["Leadership & career",["p18","p19"],"#0C447C"]
 ];
 function renderSidebar(){
   const wr=writtenSet();
@@ -930,11 +1008,11 @@ function renderSidebar(){
   <div class="navsec">Curriculum</div>`;
   const byId={};pillars().forEach(p=>byId[p.id]=p);
   const themed=new Set(PTHEMES.flatMap(t=>t[1]));
-  const groups=PTHEMES.map(([label,ids])=>[label,ids.map(id=>byId[id]).filter(Boolean)])
-    .concat([["More",pillars().filter(p=>!themed.has(p.id))]]);
-  groups.forEach(([label,ps])=>{
+  const groups=PTHEMES.map(([label,ids,col])=>[label,ids.map(id=>byId[id]).filter(Boolean),col])
+    .concat([["More",pillars().filter(p=>!themed.has(p.id)),"#b2bfc6"]]);
+  groups.forEach(([label,ps,col])=>{
     if(!ps.length)return;
-    h+=`<div class="navtheme">${esc(label)}</div>`;
+    h+=`<div class="navtheme"><i class="tdot" style="background:${col}"></i>${esc(label)}</div>`;
     ps.forEach(p=>{
       const st=pillarStats(p,wr);
       const active=VIEW.name==="pillar"&&VIEW.p===p.id;
@@ -966,11 +1044,17 @@ function loadGate(){
 }
 
 function vHome(){
+  rolloverSched();
   const tots=curricTotals();
   const due=dueUnits().length, fresh=Math.min(newUnits().length,newAllowance());
   const ret=retention30();
   const doneToday=(DB.meta.revlog||{})[todayStr()]||0;
-  let h=topbar("Overview",null,`<span class="chip">🔥 ${DB.meta.streak||0} day streak</span><span class="chip">${doneToday} recalled today</span><button class="btn ghost" onclick="APP.refresh()" title="Refresh data">⟳ Refresh</button>`);
+  const est=focusEstMin();
+  const startBtns=est>0
+    ?`<button class="btn primary" onclick="APP.focusStart('full')" title="Reviews first, then today's planned lessons — full screen, one thing at a time">▶ Start (~${est} min)</button>
+      <button class="btn" onclick="APP.focusStart('quick')" title="Just 5 minutes of recall — you're allowed to stop after">5 min</button>`
+    :`<span class="chip" style="color:var(--done);border-color:#bfe6cf">✓ All clear today</span>`;
+  let h=topbar("Overview",null,`${startBtns}<span class="chip">🔥 ${DB.meta.streak||0} day streak</span><span class="chip">${doneToday} recalled today</span><button class="btn ghost" onclick="APP.refresh()" title="Refresh data">⟳ Refresh</button>`);
 
   /* ---- Study planner (week board) ---- */
   const s=schedGet();
@@ -1001,18 +1085,19 @@ function vHome(){
     if(isPast)h+=`<div class="plrev">${rf?rf+" recalled":"—"}</div>`;
     else h+=`<div class="plrev ${rf?"has":""}" ${isToday&&rf?`onclick="APP.go('review')" title="Start review"`:`title="Cards forecast to come due"`}>↻ Review · ${isToday?rf+" due":rf?"~"+rf:"0"}</div>`;
     items.forEach(x=>{
+      const mv=x.mv?`<span class="mvtag" title="rolled over from ${esc(x.mv)}">↻</span> `:"";
       if(x.type==="lesson"){
         const it=item(x.ref), col=it?pillarCol(it.pillar):"var(--neutral)";
         const dn=schedLessonDone(x);
         h+=`<div class="plblock ${dn?"done":""}" style="border-left-color:${col}" draggable="true" ondragstart="APP.dragStart(event,'${x.id}')">
           <button class="plx" onclick="APP.schedRm('${x.id}')" title="Remove from plan">✕</button>
           <span class="plt" style="cursor:pointer" onclick="APP.go('lesson','${x.ref}')" title="${esc(x.title)}">${esc(x.title)}</span>
-          <span class="plm">${dn?"✓ studied":`${x.ref} · ${x.min||15}m`}</span></div>`;
+          <span class="plm">${dn?`<span style="color:var(--done);font-weight:600">✓ studied</span>`:`${mv}${x.ref} · ${x.min||15}m`}</span></div>`;
       }else{
         h+=`<div class="plblock ${x.done?"done":""}" style="border-left-color:var(--neutral)" draggable="true" ondragstart="APP.dragStart(event,'${x.id}')">
           <button class="plx" onclick="APP.schedRm('${x.id}')" title="Remove">✕</button>
           <span class="plt plck" onclick="APP.schedToggle('${x.id}')" title="Click to toggle done">${esc(x.title)}</span>
-          <span class="plm">${x.done?"✓ done":(x.min||15)+"m"}</span></div>`;
+          <span class="plm">${x.done?`<span style="color:var(--done);font-weight:600">✓ done</span>`:mv+(x.min||15)+"m"}</span></div>`;
       }
     });
     h+=`<button class="pladd" onclick="APP.schedAddSheet('${k}')" ${isPast?"disabled":""}>＋ add</button></div>`;
@@ -1024,11 +1109,12 @@ function vHome(){
   h+=`<div class="kpis">
     <div class="kpi"><div class="n">${tots.written}<small> / ${tots.total}</small></div><div class="l">Lessons written</div><div class="bar"><i style="width:${tots.total?Math.round(tots.written/tots.total*100):0}%"></i></div></div>
     <div class="kpi"><div class="n">${tots.done}<small> / ${tots.written}</small></div><div class="l">Lessons studied</div><div class="bar"><i style="width:${tots.written?Math.round(tots.done/tots.written*100):0}%;background:var(--done)"></i></div></div>
-    <div class="kpi"><div class="n" style="color:${due?"var(--accent)":"var(--text)"}">${due}</div><div class="l">Cards due now</div></div>
+    <div class="kpi"><div class="n" style="color:${due?"var(--warn)":"var(--text)"}">${due}</div><div class="l">Cards due now</div></div>
     <div class="kpi"><div class="n">${fresh}</div><div class="l">New cards today</div></div>
     <div class="kpi"><div class="n" style="color:${ret==null?"var(--text)":ret>=85?"var(--done)":ret>=70?"var(--warn)":"var(--blocked)"}">${ret==null?"—":ret+"%"}</div><div class="l">Retention · 30d</div></div>
   </div>`;
-  /* Momentum (active pillars only, monochrome) + study insights (consistency heatmap, weak spots) */
+  h+=`<div class="bigbarrow"><div class="bigbar"><i style="width:${tots.total?Math.max(1,Math.round(tots.written/tots.total*1000)/10):0}%"></i></div><span><b style="color:var(--text)">${tots.written}</b> of ${tots.total} topics written · ${tots.total?Math.round(tots.written/tots.total*1000)/10:0}%</span></div>`;
+  /* Momentum (active pillars) + study insights (consistency heatmap, weak spots) */
   const wr=writtenSet();
   const stats=pillars().map(p=>({p,st:pillarStats(p,wr)}));
   const active=stats.filter(x=>x.st.written>0);
@@ -1041,8 +1127,8 @@ function vHome(){
     const mast=st.written?Math.round(st.done/st.written*100):0;
     h+=`<div class="mrow" onclick="APP.go('pillar','${p.id}')" title="${st.done} of ${st.written} written lessons studied">
       <span class="pn">${p.n}</span><span class="pt2">${esc(p.title)}</span>
-      <span class="pmeta">${st.done}/${st.written} studied${st.p0-st.p0w>0?` · ${st.p0-st.p0w} P0 open`:""}</span>
-      <span class="pbar2"><i style="width:${mast}%"></i></span></div>`;
+      <span class="pmeta">${st.done}/${st.written} studied${st.p0-st.p0w>0?` · <span style="color:var(--stale)">${st.p0-st.p0w} P0 open</span>`:""}</span>
+      <span class="pbar2"><i style="width:${mast}%;background:var(--done)"></i></span></div>`;
   });
   if(idle)h+=`<div style="font-size:11px;color:#a7adb6;padding:8px 4px 2px;border-top:1px solid #f1f3f5;margin-top:6px">${idle} pillars not started (${idleP0} P0 topics among them) — they're all in the sidebar.</div>`;
   h+=`</div>`;
@@ -1072,8 +1158,9 @@ function heatmapHTML(){
       const k=todayStr(day);
       const n=(DB.meta.revlog||{})[k]||0;
       const fut=k>today;
-      const a=n===0?0:n<3?.16:n<6?.35:n<10?.6:.85;
-      cells+=`<span title="${k} · ${n} recalled" style="width:11px;height:11px;border-radius:3px;background:${fut?"transparent":a?`rgba(1,61,91,${a})`:"#f1f3f5"};${fut?"border:1px dashed #eef0f3;":""}${k===today?"box-shadow:0 0 0 1.5px var(--accent);":""}"></span>`;
+      /* sequential green scale (dataviz-skill validated: monotonic lightness, tooltip = secondary encoding) */
+      const col=n===0?"#f1f3f5":n<3?"#DEF2E6":n<6?"#9DD8B3":n<10?"#61C084":"#16A34A";
+      cells+=`<span title="${k} · ${n} recalled" style="width:11px;height:11px;border-radius:3px;background:${fut?"transparent":col};${fut?"border:1px dashed #eef0f3;":""}${k===today?"box-shadow:0 0 0 1.5px var(--accent);":""}"></span>`;
     }
     cells+=`</div>`;
   }
@@ -1105,7 +1192,7 @@ function vPillar(pid){
         <span class="tid">${t.id}</span>
         <span class="tt">${esc(t.t)}</span>
         ${t.pri?`<span class="pri ${esc(t.pri)}">${esc(t.pri)}</span>`:""}
-        ${w?`<span class="lessonbadge">LESSON ›</span>`:`<span class="chip hoveract" style="padding:1px 8px;font-size:10px" onclick="event.stopPropagation();APP.captureFor('${t.id}')">＋ source</span>`}
+        ${w?`<span class="lessonbadge">★ LESSON ›</span>`:`<span class="chip hoveract" style="padding:1px 8px;font-size:10px" onclick="event.stopPropagation();APP.captureFor('${t.id}')">＋ source</span>`}
         <span class="donetick">${done?"✓":""}</span>
       </div>`;
     });
@@ -1144,6 +1231,11 @@ function vLesson(tid){
     if(les.takeaways&&les.takeaways.length)h+=`<div class="takeaways"><div class="eyebrow" style="color:var(--accent)">⭐ Key takeaways</div><ul>${les.takeaways.map(x=>`<li>${esc(x)}</li>`).join("")}</ul></div>`;
     if(les.tip)h+=`<div class="tipbox">💡 <strong>Pro tip:</strong> ${esc(les.tip)}</div>`;
     h+=`</div>`;
+  }
+  if(FOCUS&&FOCUS.stage==="lessons"){
+    h+=`<div class="focuslessonbar"><span class="micro">Lesson ${FOCUS.li+1} of ${FOCUS.lessons.length} · ~${lessonMin(it)} min</span>
+      <span style="flex:1"></span>
+      <button class="btn primary" onclick="APP.focusNextLesson()">✓ Done — ${FOCUS.li+1<FOCUS.lessons.length?"next lesson →":"finish session"}</button></div>`;
   }
   h+=`</div><aside class="readrail"><div class="rlcard">
     <div class="micro" style="margin-bottom:6px">About</div>
@@ -1274,6 +1366,30 @@ function vReview(){
   return topbar("Review",null,`<span class="chip">${s.i+1} of ${s.q.length}</span><button class="btn ghost" onclick="APP.endSession()">End session</button>`)+
     `<div class="revwrap"><div class="revcard">${inner}${controls}</div><div class="kbdhint">${hint}</div>${missBox}</div>`;
 }
+function vFocusQuick(){
+  const mins=Math.max(1,Math.round((Date.now()-FOCUS.t0)/60000));
+  return topbar("Nice — five minutes done")+`<div class="empty"><div class="glyph" style="color:var(--done);font-size:40px">✓</div>
+    <h3>${FOCUS.rec} recalled in ~${mins} min</h3>
+    <p>Starting was the hard part — it's done. Want to ride the momentum?</p>
+    <div style="margin-top:18px;display:flex;gap:8px;justify-content:center">
+      <button class="btn primary" onclick="APP.keepGoing()">Keep going →</button>
+      <button class="btn" onclick="APP.focusExit()">Done for now</button></div></div>`;
+}
+function vFocusDone(){
+  const mins=Math.max(1,Math.round((Date.now()-FOCUS.t0)/60000));
+  const gl=(DB.meta.gradelog||{})[todayStr()]||{n:0,a:0};
+  const ret=gl.n?Math.round((1-gl.a/gl.n)*100):null;
+  return topbar("Session complete")+`<div class="empty"><div class="glyph" style="color:var(--done);font-size:40px">✦</div>
+    <h3>Focus session complete</h3>
+    <div class="kpis" style="max-width:520px;margin:16px auto 8px">
+      <div class="kpi"><div class="n">${FOCUS.rec||0}</div><div class="l">Recalled</div></div>
+      <div class="kpi"><div class="n" style="color:var(--done)">${FOCUS.li||0}</div><div class="l">Lessons studied</div></div>
+      <div class="kpi"><div class="n">${mins}</div><div class="l">Minutes</div></div>
+      <div class="kpi"><div class="n">🔥 ${DB.meta.streak||0}</div><div class="l">Streak</div></div>
+      <div class="kpi"><div class="n" style="color:${ret==null?"var(--text)":ret>=85?"var(--done)":"var(--warn)"}">${ret==null?"—":ret+"%"}</div><div class="l">Today</div></div>
+    </div>
+    <div style="margin-top:14px"><button class="btn primary" onclick="APP.focusExit()">Back to overview</button></div></div>`;
+}
 
 /* ---------- capture ---------- */
 let CAP={note:"",url:"",instr:"",lane:"filter",work:false,mode:"fast",files:[],topic:null};
@@ -1393,8 +1509,48 @@ const APP={
   refresh(){toast("Refreshing…");fetchData();pull().then(()=>{render();renderSidebar();});},
   syncNow(){if(!token())return APP.settings();toast("Syncing…");pull().then(()=>push()).then(()=>{render();renderSidebar();});},
   markDone(id){
-    if(DB.done[id]){delete DB.done[id];}else{DB.done[id]=todayStr();toast("✓ Studied — cards unlocked for review");}
+    if(DB.done[id]){delete DB.done[id];}
+    else{
+      DB.done[id]=todayStr();
+      showTick("✓");
+      const t=todayStr(),s=schedGet();
+      const todays=(s.items||[]).filter(x=>x.day===t);
+      const clear=todays.length&&todays.every(x=>x.type==="lesson"?!!DB.done[x.ref]:!!x.done);
+      toast(clear?"🎉 Today's plan is clear — nicely done":"✓ Studied — cards unlocked for review");
+    }
     saveLocal();render();renderSidebar();
+  },
+  /* focus mode */
+  focusStart(mode){
+    SESSION=null;
+    let q=buildSession();
+    if(mode==="quick")q=q.slice(0,10);
+    const lessons=focusLessons();
+    if(!q.length&&(mode==="quick"||!lessons.length))return toast("Nothing due right now — all clear ✓");
+    FOCUS={mode,stage:q.length?"review":"lessons",lessons,li:0,t0:Date.now(),rec:0};
+    if(q.length){SESSION={q,i:0,shown:false,doneCount:0,typed:"",picked:null,missed:null};VIEW={name:"review",p:null};}
+    else VIEW={name:"lesson",p:lessons[0]};
+    render();renderSidebar();window.scrollTo(0,0);startFClock();
+  },
+  keepGoing(){
+    FOCUS.mode="full";FOCUS.stage="review";SESSION=null;
+    const q=buildSession();
+    if(q.length){SESSION={q,i:0,shown:false,doneCount:0,typed:"",picked:null,missed:null};VIEW={name:"review",p:null};}
+    else if(FOCUS.lessons.length&&FOCUS.li<FOCUS.lessons.length){FOCUS.stage="lessons";VIEW={name:"lesson",p:FOCUS.lessons[FOCUS.li]};}
+    else{FOCUS.stage="done";VIEW={name:"focusdone",p:null};}
+    render();window.scrollTo(0,0);
+  },
+  focusNextLesson(){
+    const cur=FOCUS.lessons[FOCUS.li];
+    if(cur&&!DB.done[cur])APP.markDone(cur);
+    FOCUS.li++;
+    if(FOCUS.li<FOCUS.lessons.length)VIEW={name:"lesson",p:FOCUS.lessons[FOCUS.li]};
+    else{FOCUS.stage="done";VIEW={name:"focusdone",p:null};}
+    render();window.scrollTo(0,0);
+  },
+  focusExit(){
+    FOCUS=null;clearInterval(FCLOCK);
+    VIEW={name:"home",p:null};render();renderSidebar();window.scrollTo(0,0);
   },
   topicStub(id){
     const ix=topicIndex()[id];
@@ -1535,9 +1691,17 @@ const APP={
     const u=SESSION.q[SESSION.i];grade(resolveUnit(u),g);SESSION.doneCount++;
     SESSION.missed=(g===0)?resolveUnit(u):null;
     if(g===0)SESSION.q.push(u);
-    SESSION.i++;SESSION.shown=false;SESSION.typed="";SESSION.picked=null;render();renderSidebar();
+    SESSION.i++;SESSION.shown=false;SESSION.typed="";SESSION.picked=null;
+    if(FOCUS&&SESSION.i>=SESSION.q.length){
+      FOCUS.rec=(FOCUS.rec||0)+SESSION.doneCount;SESSION=null;showTick("✓");
+      if(FOCUS.mode==="quick")VIEW={name:"focusquick",p:null};
+      else if(FOCUS.lessons.length&&FOCUS.li<FOCUS.lessons.length){FOCUS.stage="lessons";VIEW={name:"lesson",p:FOCUS.lessons[FOCUS.li]};}
+      else{FOCUS.stage="done";VIEW={name:"focusdone",p:null};}
+      window.scrollTo(0,0);
+    }
+    render();renderSidebar();
   },
-  endSession(){SESSION=null;APP.go("home");},
+  endSession(){if(FOCUS)return APP.focusExit();SESSION=null;APP.go("home");},
   /* search */
   searchOpen(){SOPEN=true;$("#sov").classList.add("open");const q=$("#sq");q.value="";SHITS=[];SSEL=0;renderSearch();setTimeout(()=>q.focus(),30);},
   searchClose(){SOPEN=false;$("#sov").classList.remove("open");},
@@ -1590,8 +1754,11 @@ function render(){
   else if(VIEW.name==="lesson"||VIEW.name==="item")h=vLesson(VIEW.p);
   else if(VIEW.name==="review")h=vReview();
   else if(VIEW.name==="capture")h=vCapture();
+  else if(VIEW.name==="focusquick")h=vFocusQuick();
+  else if(VIEW.name==="focusdone")h=vFocusDone();
   else h=vHome();
-  m.innerHTML=h;
+  document.querySelector(".app").classList.toggle("focusmode",!!FOCUS);
+  m.innerHTML=(FOCUS?focusBar():"")+h;
   if(VIEW.name==="lesson"||VIEW.name==="item")buildTOC();
 }
 
@@ -1607,6 +1774,7 @@ document.addEventListener("keydown",e=>{
     return;
   }
   if($("#mov").classList.contains("open")){if(e.key==="Escape")closeModal();return;}
+  if(e.key==="Escape"&&FOCUS){APP.focusExit();return;}
   if(VIEW.name==="review"&&SESSION&&SESSION.i<SESSION.q.length){
     const u=SESSION.q[SESSION.i];
     if(inField){
