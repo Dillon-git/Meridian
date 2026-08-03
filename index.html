@@ -343,8 +343,11 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 /* FAB speed-dial (replaces .itembar on item pages, v48): single bottom-right icon; hides on
    scroll-down / returns on scroll-up exactly like the nav, so reading mode stays clean */
 .fabwrap{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom) + 78px);z-index:40;
-  display:flex;flex-direction:column;align-items:flex-end;gap:9px;transition:transform .28s,opacity .22s}
-.fabwrap.navhide{transform:translateY(30px);opacity:0;pointer-events:none}
+  display:flex;flex-direction:column;align-items:flex-end;gap:9px;transition:opacity .2s;will-change:opacity}
+/* NOTE: never put a transform on this fixed wrapper — iOS composites transformed fixed elements
+   on a lagging layer during scroll, which made the FAB paint mid-screen while hiding/showing.
+   Hide is opacity-only; motion effects belong on children (.fab rotate is tap-only, safe). */
+.fabwrap.navhide{opacity:0;pointer-events:none}
 .fab{width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;
   font-size:24px;line-height:1;box-shadow:0 8px 24px rgba(15,15,30,.28);display:flex;align-items:center;
   justify-content:center;transition:transform .2s;cursor:pointer}
@@ -587,7 +590,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v49";
+const BUILD="v50";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
