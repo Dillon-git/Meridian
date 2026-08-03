@@ -499,6 +499,21 @@ nav button{font-size:11.5px}
  border:1px solid #c4d7f2;border-radius:6px;padding:3px 8px;height:fit-content}.richnote .sbody{min-width:0}.richnote .sbody .st{font-weight:650;font-size:14.5px}.richnote .sbody .st a{color:#0d1730;text-decoration:none;border-bottom:1.5px solid #c4d7f2}.richnote .sbody .st a:hover{color:#1d4c94}.richnote .smeta{font-size:12px;color:var(--mut);margin:2px 0 3px}.richnote .stype{display:inline-block;font-size:10px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;
  border-radius:4px;padding:1px 6px;background:#f2f4f7;border:1px solid var(--line);color:var(--mut)}.richnote .swhy{font-size:13px;color:#374151}.richnote .sused{font-size:12px;color:var(--mut);font-style:italic}.richnote .unfiled{margin-top:10px;font-size:12.5px;color:#8a5c07;background:#fff8e6;border:1px dashed #f0d089;
  border-radius:8px;padding:8px 12px}.richnote footer{max-width:1180px;margin:18px auto 0;font-size:12px;color:#8a91a0;text-align:center}.richnote footer a{color:#8a91a0}@media print{.richnote{background:#fff;padding:0}.richnote .back{display:none}.richnote .panel,.richnote .lstep,.richnote header.hd{break-inside:avoid;border-color:#ccc}.richnote details{border-color:#ccc}.richnote details>.ans{display:block!important}}@media (max-width:820px){.richnote .grid{grid-template-columns:1fr}.richnote h1{font-size:23px}.richnote header.hd{padding:20px}.richnote .panel{padding:16px}.richnote .lstep{padding:16px}}
+.richnote{padding:0!important;background:transparent!important;font-size:15px!important}
+.richnote header.hd{padding:15px 15px 14px!important;margin-bottom:14px!important}
+.richnote .grid{gap:12px!important}
+.richnote .panel{padding:15px 15px 13px!important}
+.richnote .lstep{gap:11px!important;padding:15px 15px 14px!important}
+.richnote .lnum{width:26px!important;height:26px!important;font-size:12.5px!important;margin-top:1px!important}
+.richnote .lbody h2{font-size:16px!important}
+.richnote .ex{padding:9px 11px!important;gap:8px!important}
+.richnote .hook{padding:10px 13px!important}
+.richnote blockquote{padding:10px 13px!important}
+.richnote pre{padding:11px 12px!important}
+.richnote .dia{padding:8px!important}
+.richnote table{font-size:13px!important}
+.richnote th,.richnote td{padding:6px 8px!important}
+
 /* ===== curriculum browser (v43) ===== */
 .cpill{background:var(--card);border:1px solid var(--line2);border-radius:12px;margin:8px 0;overflow:hidden}
 .cph{display:flex;align-items:center;gap:10px;padding:12px 14px;cursor:pointer}
@@ -533,7 +548,7 @@ nav button{font-size:11.5px}
 <div class="modal" id="modal"><div class="sheet" id="sheet"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v43";
+const BUILD="v44";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
