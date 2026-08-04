@@ -181,6 +181,10 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
 .trow .tid { font-size: 10.5px; color: #c5c5cc; width: 34px; flex: 0 0 34px; font-weight: 600; }
 .trow .tt { font-size: 12.5px; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .trow.nolesson .tt { color: var(--muted); }
+.trow .lvl { font-size: 9.5px; color: #b8bec6; flex: 0 0 auto; width: 72px; text-align: right; }
+.whyline { font-size: 11px; color: var(--muted); font-weight: 400; }
+.topbar.sticky { position: sticky; top: 0; z-index: 30; background: var(--bg); padding: 14px 0 10px;
+  margin: -20px 0 12px; border-bottom: 1px solid #f1f3f5; }
 .trow .pri { font-size: 9.5px; font-weight: 700; border-radius: 4px; padding: 1px 5px; letter-spacing: .03em; flex: 0 0 auto; }
 .pri.P0 { background: #fdecec; color: var(--priority-high); }
 .pri.P1 { background: #fff8e7; color: var(--stale); }
@@ -441,7 +445,7 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
    State code (defaultDB/mergeDB/FSRS/units) is ported VERBATIM from index.html —
    any state-key added to mobile mergeDB MUST be mirrored here (harness-checked). */
 "use strict";
-const BUILD="desk-v2";
+const BUILD="desk-v3";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const DAY=86400000;
@@ -978,6 +982,8 @@ function showTick(txt){
   const d=document.createElement("div");d.className="tickpop";d.textContent=txt||"✓";
   document.body.appendChild(d);setTimeout(()=>{try{d.remove();}catch(e){}},900);
 }
+function logMin(m){const t=todayStr();DB.meta.minlog[t]=Math.round(((DB.meta.minlog[t]||0)+m)*10)/10;}
+function activeMinToday(){return (DB.meta.minlog||{})[todayStr()]||0;}
 function retention30(){
   let n=0,a=0;
   for(let i=0;i<30;i++){const k=todayStr(new Date(Date.now()-i*DAY));const e=(DB.meta.gradelog||{})[k];if(e){n+=e.n;a+=e.a;}}
@@ -1031,8 +1037,8 @@ function renderSidebar(){
 }
 
 /* ---------- views ---------- */
-function topbar(title,crumbs,right){
-  return `<div class="topbar">${crumbs?`<span class="crumb">${crumbs}</span>`:`<h1 class="pt">${esc(title)}</h1>`}<span class="spacer"></span>${right||""}</div>`;
+function topbar(title,crumbs,right,sticky){
+  return `<div class="topbar${sticky?" sticky":""}">${crumbs?`<span class="crumb">${crumbs}</span>`:`<h1 class="pt">${esc(title)}</h1>`}<span class="spacer"></span>${right||""}</div>`;
 }
 function connectGate(){
   return `<div class="empty"><div class="glyph">◈</div><h3>Connect your vault</h3>
@@ -1054,7 +1060,7 @@ function vHome(){
     ?`<button class="btn primary" onclick="APP.focusStart('full')" title="Reviews first, then today's planned lessons — full screen, one thing at a time">▶ Start (~${est} min)</button>
       <button class="btn" onclick="APP.focusStart('quick')" title="Just 5 minutes of recall — you're allowed to stop after">5 min</button>`
     :`<span class="chip" style="color:var(--done);border-color:#bfe6cf">✓ All clear today</span>`;
-  let h=topbar("Overview",null,`${startBtns}<span class="chip">🔥 ${DB.meta.streak||0} day streak</span><span class="chip">${doneToday} recalled today</span><button class="btn ghost" onclick="APP.refresh()" title="Refresh data">⟳ Refresh</button>`);
+  let h=topbar("Overview",null,`${startBtns}<span class="chip">🔥 ${DB.meta.streak||0} day streak</span><span class="chip" id="minchip" title="Active study minutes today — same 40-min ring as your phone">⏱ ${Math.round(activeMinToday())}/40 min</span><span class="chip">${doneToday} recalled today</span><button class="btn ghost" onclick="APP.refresh()" title="Refresh data">⟳ Refresh</button>`);
 
   /* ---- Study planner (week board) ---- */
   const s=schedGet();
@@ -1188,9 +1194,10 @@ function vPillar(pid){
     (sb.topics||[]).forEach(t=>{
       const w=wr.has(t.id)||t.note;
       const done=!!DB.done[t.id];
-      h+=`<div class="trow ${w?"haslesson":"nolesson"}" onclick="${w?`APP.go('lesson','${t.id}')`:`APP.topicStub('${t.id}')`}">
+      h+=`<div class="trow ${w?"haslesson":"nolesson"}" onclick="${w?`APP.go('lesson','${t.id}')`:`APP.topicStub('${t.id}')`}" ${t.why?`title="${esc(t.why)}"`:""}>
         <span class="tid">${t.id}</span>
-        <span class="tt">${esc(t.t)}</span>
+        <span class="tt">${esc(t.t)}${t.why?` <span class="whyline hoveract">— ${esc(t.why)}</span>`:""}</span>
+        ${t.lvl?`<span class="lvl">${esc(t.lvl)}</span>`:""}
         ${t.pri?`<span class="pri ${esc(t.pri)}">${esc(t.pri)}</span>`:""}
         ${w?`<span class="lessonbadge">★ LESSON ›</span>`:`<span class="chip hoveract" style="padding:1px 8px;font-size:10px" onclick="event.stopPropagation();APP.captureFor('${t.id}')">＋ source</span>`}
         <span class="donetick">${done?"✓":""}</span>
@@ -1219,10 +1226,10 @@ function vLesson(tid){
   const cards=(artifact(it,"cards")||[]).length;
   const nb=lessonNeighbors(tid);
   let h=topbar(null,
-    `<a onclick="APP.go('home')">Overview</a> / ${p?`<a onclick="APP.go('pillar','${p.id}')">${p.n}. ${esc(p.title)}</a> / `:""}<b style="color:var(--text)">${esc(tid)}</b>`,
+    `<a onclick="APP.go('home')">Overview</a> / ${p?`<a onclick="APP.go('pillar','${p.id}')">${p.n}. ${esc(p.title)}</a> / `:""}<b style="color:var(--text)">${esc(tid)}</b> <span style="color:var(--muted)">· ${esc((ix?ix.topic.t:it.title||"").slice(0,52))}${(ix?ix.topic.t:it.title||"").length>52?"…":""}</span>`,
     `${nb.prev?`<button class="btn ghost" onclick="APP.go('lesson','${nb.prev}')" title="Previous lesson (←)">‹ Prev</button>`:""}
      ${nb.next?`<button class="btn ghost" onclick="APP.go('lesson','${nb.next}')" title="Next lesson (→)">Next ›</button>`:""}
-     <button class="btn ${done?"":"primary"}" onclick="APP.markDone('${tid}')">${done?"✓ Studied":"Mark studied"}</button>`);
+     <button class="btn ${done?"":"primary"}" onclick="APP.markDone('${tid}')">${done?"✓ Studied":"Mark studied"}</button>`,true);
   h+=`<div class="reader"><div class="readmain" id="readmain">`;
   if(it.richHtml){h+=it.richHtml;}
   else{
@@ -1828,6 +1835,12 @@ window.__qld={
 renderSidebar();render();
 if(token()){fetchData();pull().then(()=>{render();renderSidebar();});}
 setInterval(()=>{if(token()&&document.visibilityState==="visible")fetchData();},5*60*1000);
+/* active-minute ticker — same contract as mobile (minlog accrues 1/min while visible, feeds the
+   40-min ring; cross-device same-day minutes merge as MAX, per both apps' mergeDB) */
+setInterval(()=>{
+  if(token()&&document.visibilityState==="visible"&&DATALOADED){logMin(1);saveLocal();
+    const c=document.querySelector("#minchip");if(c)c.textContent="⏱ "+Math.round(activeMinToday())+"/40 min";}
+},60*1000);
 </script>
 </body>
 </html>
