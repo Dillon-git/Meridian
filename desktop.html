@@ -88,6 +88,11 @@ a { color: var(--accent); }
 .navtheme .tdot { width: 6px; height: 6px; border-radius: 2px; flex: 0 0 6px; opacity: .8; }
 .nav-item .cnt { margin-left: auto; font-size: 11px; color: #a7adb6; }
 .nav-item .cnt.badge { color: #fff; background: var(--accent); border-radius: 20px; padding: 1px 7px; font-size: 10.5px; font-weight: 600; }
+.nav-item .pring { margin-left: auto; width: 15px; height: 15px; border-radius: 50%; flex: 0 0 15px; position: relative; }
+.nav-item .pring i { position: absolute; inset: 2.5px; border-radius: 50%; background: #fafafa; }
+.nav-item .duedot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); flex: 0 0 6px; margin-left: auto; }
+.nav-item .duedot + .pring, .nav-item .duedot + .nextchip { margin-left: 6px; }
+.nav-item .nextchip { margin-left: auto; font-size: 9px; font-weight: 700; color: var(--accent); background: var(--accent-soft); border-radius: 4px; padding: 1px 5px; flex: 0 0 auto; }
 .nav-item .pbar { margin-left: auto; width: 46px; height: 4px; border-radius: 3px; background: #ececf0; overflow: hidden; flex: 0 0 46px; }
 .nav-item .pbar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
 .sidefoot { margin-top: auto; padding: 10px 4px 2px; border-top: 1px solid var(--border); }
@@ -445,7 +450,7 @@ h1.pt { font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
    State code (defaultDB/mergeDB/FSRS/units) is ported VERBATIM from index.html —
    any state-key added to mobile mergeDB MUST be mirrored here (harness-checked). */
 "use strict";
-const BUILD="desk-v3";
+const BUILD="desk-v4";
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const DAY=86400000;
@@ -963,18 +968,48 @@ function focusEstMin(){
   const l=focusLessons().reduce((a,r)=>a+lessonMin(item(r)),0);
   return Math.round((due+fresh)*0.5+l);
 }
+function focusElapsedSec(){return FOCUS?Math.floor((Date.now()-FOCUS.t0)/1000):0;}
 function startFClock(){
   clearInterval(FCLOCK);
   FCLOCK=setInterval(()=>{
+    if(!FOCUS)return;
+    const s=focusElapsedSec();
     const el=document.querySelector(".fclock");
-    if(!el||!FOCUS)return;
-    const s=Math.floor((Date.now()-FOCUS.t0)/1000);
-    el.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0");
+    if(el){const seg=Math.floor(s/1500);
+      el.textContent=Math.floor(s/60)+":"+String(s%60).padStart(2,"0")+(seg>0?" · seg "+(seg+1):"");}
+    /* gentle pomodoro: a nudge at each 25-min boundary — no punishment mechanics */
+    const seg=Math.floor(s/1500);
+    if(seg>(FOCUS.lastSeg||0)){FOCUS.lastSeg=seg;toast("🍅 "+(seg*25)+" min of focus — good spot for a 30-second stretch");}
   },1000);
+}
+/* time-budget session (Cost-ADR-lite): pack highest retention-ROI cards into N minutes —
+   lowest retrievability first (most at-risk memories give the biggest gain per minute) */
+function budgetQueue(mins){
+  const cap=Math.max(3,Math.round(mins*2)); /* ~30s per card */
+  const now=Date.now();
+  const due=dueUnits().map(u=>{const e=DB.srs[u.id];
+      return {u,r:e?fsR(Math.max(0,(now-(e.last||now))/DAY),e.s):1};})
+    .sort((a,b)=>a.r-b.r).map(x=>x.u);
+  const fresh=newUnits().slice(0,newAllowance());
+  return [...due,...fresh].slice(0,cap);
+}
+/* memory health: avg retrievability of reviewed cards, per pillar/category */
+function pillarHealth(){
+  const now=Date.now(),agg={};
+  for(const u of unlockedUnits()){
+    const e=DB.srs[u.id];if(!e||e.susp)continue;
+    const r=fsR(Math.max(0,(now-(e.last||now))/DAY),e.s);
+    (agg[u.cat]=agg[u.cat]||{s:0,n:0});agg[u.cat].s+=r;agg[u.cat].n++;
+  }
+  const out={};for(const k in agg)out[k]={h:Math.round(agg[k].s/agg[k].n*100),n:agg[k].n};
+  return out;
+}
+function pillarDueMap(){
+  const m={};dueUnits().forEach(u=>{m[u.cat]=(m[u.cat]||0)+1;});return m;
 }
 function focusBar(){
   if(!FOCUS)return "";
-  const stage=FOCUS.stage==="review"?(FOCUS.mode==="quick"?"5-minute recall":"Recall"):FOCUS.stage==="lessons"?`Lesson ${FOCUS.li+1} of ${FOCUS.lessons.length}`:"Done";
+  const stage=FOCUS.stage==="review"?(FOCUS.budget?FOCUS.budget+"-minute recall":"Recall"):FOCUS.stage==="lessons"?`Lesson ${FOCUS.li+1} of ${FOCUS.lessons.length}`:"Done";
   return `<div class="focusbar"><b>◉ Focus</b><span>${esc(stage)}</span><span class="fclock">0:00</span>
     <span style="flex:1"></span><button class="btn ghost" onclick="APP.focusExit()">✕ Exit <kbd style="font-size:9px;border:1px solid var(--border);border-radius:4px;padding:0 4px;background:#fafafa">Esc</kbd></button></div>`;
 }
@@ -1012,6 +1047,9 @@ function renderSidebar(){
   ${nav("review","✓","#1D9E75","Review",revN?`<span class="cnt badge">${revN}</span>`:"")}
   ${nav("capture","＋","#D85A30","Capture")}
   <div class="navsec">Curriculum</div>`;
+  const dueMap=DATALOADED?pillarDueMap():{};
+  const nl=DATALOADED?nextLessons(1):[];
+  const nextP=nl.length?nl[0].p.id:null;
   const byId={};pillars().forEach(p=>byId[p.id]=p);
   const themed=new Set(PTHEMES.flatMap(t=>t[1]));
   const groups=PTHEMES.map(([label,ids,col])=>[label,ids.map(id=>byId[id]).filter(Boolean),col])
@@ -1022,10 +1060,17 @@ function renderSidebar(){
     ps.forEach(p=>{
       const st=pillarStats(p,wr);
       const active=VIEW.name==="pillar"&&VIEW.p===p.id;
-      h+=`<button class="nav-item ${active?"active":""}" onclick="APP.go('pillar','${p.id}')" title="${esc(p.title)} — ${st.written}/${st.total} lessons">
+      const due=dueMap[p.id]||0;
+      const isNext=nextP===p.id;
+      const mast=st.written?Math.round(st.done/st.written*100):0;
+      let sig="";
+      if(isNext)sig=`<span class="nextchip" title="auto-plan resumes here">▶ NEXT</span>`;
+      else if(st.done>0)sig=`<span class="pring" title="${st.done}/${st.written} studied" style="background:conic-gradient(var(--done) 0 ${Math.max(4,mast)}%, #ececf0 ${Math.max(4,mast)}% 100%)"><i></i></span>`;
+      else if(st.written>0)sig=`<span class="cnt" title="${st.written} lessons ready">${st.written}</span>`;
+      h+=`<button class="nav-item ${active?"active":""}" onclick="APP.go('pillar','${p.id}')" title="${esc(p.title)}${st.written?` — ${st.done}/${st.written} studied${due?` · ${due} due`:""}`:""}">
         <span class="pnum">${p.n}</span>
-        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">${esc(p.title)}</span>
-        ${st.written?`<span class="pbar"><i style="width:${st.pct}%"></i></span>`:`<span class="cnt">${st.total}</span>`}</button>`;
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0${st.written?"":";color:var(--muted)"}">${esc(p.title)}</span>
+        ${due?`<span class="duedot" title="${due} cards due"></span>`:""}${sig}</button>`;
     });
   });
   h+=`<div class="sidefoot">
@@ -1058,7 +1103,7 @@ function vHome(){
   const est=focusEstMin();
   const startBtns=est>0
     ?`<button class="btn primary" onclick="APP.focusStart('full')" title="Reviews first, then today's planned lessons — full screen, one thing at a time">▶ Start (~${est} min)</button>
-      <button class="btn" onclick="APP.focusStart('quick')" title="Just 5 minutes of recall — you're allowed to stop after">5 min</button>`
+      <span style="display:inline-flex;gap:4px">${[5,15,30].map(m=>`<button class="chip" onclick="APP.focusStart('budget',${m})" title="${m}-minute recall budget — packs the most at-risk memories first; you're allowed to stop after">${m}m</button>`).join("")}</span>`
     :`<span class="chip" style="color:var(--done);border-color:#bfe6cf">✓ All clear today</span>`;
   let h=topbar("Overview",null,`${startBtns}<span class="chip">🔥 ${DB.meta.streak||0} day streak</span><span class="chip" id="minchip" title="Active study minutes today — same 40-min ring as your phone">⏱ ${Math.round(activeMinToday())}/40 min</span><span class="chip">${doneToday} recalled today</span><button class="btn ghost" onclick="APP.refresh()" title="Refresh data">⟳ Refresh</button>`);
 
@@ -1127,13 +1172,14 @@ function vHome(){
   const idle=stats.length-active.length;
   const idleP0=stats.filter(x=>!x.st.written).reduce((n,x)=>n+x.st.p0,0);
   h+=`<div style="display:grid;grid-template-columns:1.15fr 1fr;gap:10px;align-items:start">`;
+  const health=pillarHealth();
   h+=`<div class="cardp"><div class="micro" style="margin-bottom:8px">Curriculum momentum <span style="font-weight:400;color:#c5c5cc;text-transform:none;letter-spacing:0">— pillars you've started</span></div>`;
   if(!active.length)h+=`<div style="font-size:12.5px;color:var(--muted)">Nothing started yet — open a pillar in the sidebar and mark your first lesson studied.</div>`;
   active.forEach(({p,st})=>{
     const mast=st.written?Math.round(st.done/st.written*100):0;
     h+=`<div class="mrow" onclick="APP.go('pillar','${p.id}')" title="${st.done} of ${st.written} written lessons studied">
       <span class="pn">${p.n}</span><span class="pt2">${esc(p.title)}</span>
-      <span class="pmeta">${st.done}/${st.written} studied${st.p0-st.p0w>0?` · <span style="color:var(--stale)">${st.p0-st.p0w} P0 open</span>`:""}</span>
+      <span class="pmeta">${st.done}/${st.written} studied${(health[p.id]&&health[p.id].n>=3)?` · <span title="average memory retrievability of your ${health[p.id].n} reviewed cards here — review to restore" style="color:${health[p.id].h>=90?"var(--done)":health[p.id].h>=75?"var(--muted)":"var(--stale)"}">♥ ${health[p.id].h}%</span>`:""}${st.p0-st.p0w>0?` · <span style="color:var(--stale)">${st.p0-st.p0w} P0 open</span>`:""}</span>
       <span class="pbar2"><i style="width:${mast}%;background:var(--done)"></i></span></div>`;
   });
   if(idle)h+=`<div style="font-size:11px;color:#a7adb6;padding:8px 4px 2px;border-top:1px solid #f1f3f5;margin-top:6px">${idle} pillars not started (${idleP0} P0 topics among them) — they're all in the sidebar.</div>`;
@@ -1375,7 +1421,7 @@ function vReview(){
 }
 function vFocusQuick(){
   const mins=Math.max(1,Math.round((Date.now()-FOCUS.t0)/60000));
-  return topbar("Nice — five minutes done")+`<div class="empty"><div class="glyph" style="color:var(--done);font-size:40px">✓</div>
+  return topbar("Nice — "+(FOCUS.budget||5)+"-minute session done")+`<div class="empty"><div class="glyph" style="color:var(--done);font-size:40px">✓</div>
     <h3>${FOCUS.rec} recalled in ~${mins} min</h3>
     <p>Starting was the hard part — it's done. Want to ride the momentum?</p>
     <div style="margin-top:18px;display:flex;gap:8px;justify-content:center">
@@ -1528,13 +1574,14 @@ const APP={
     saveLocal();render();renderSidebar();
   },
   /* focus mode */
-  focusStart(mode){
+  focusStart(mode,mins){
     SESSION=null;
-    let q=buildSession();
-    if(mode==="quick")q=q.slice(0,10);
+    let q;
+    if(mode==="budget"){q=budgetQueue(mins||5);mode="quick";}
+    else{q=buildSession();if(mode==="quick")q=q.slice(0,10);}
     const lessons=focusLessons();
     if(!q.length&&(mode==="quick"||!lessons.length))return toast("Nothing due right now — all clear ✓");
-    FOCUS={mode,stage:q.length?"review":"lessons",lessons,li:0,t0:Date.now(),rec:0};
+    FOCUS={mode,budget:mins||null,stage:q.length?"review":"lessons",lessons,li:0,t0:Date.now(),rec:0,lastSeg:0};
     if(q.length){SESSION={q,i:0,shown:false,doneCount:0,typed:"",picked:null,missed:null};VIEW={name:"review",p:null};}
     else VIEW={name:"lesson",p:lessons[0]};
     render();renderSidebar();window.scrollTo(0,0);startFClock();
@@ -1837,6 +1884,11 @@ if(token()){fetchData();pull().then(()=>{render();renderSidebar();});}
 setInterval(()=>{if(token()&&document.visibilityState==="visible")fetchData();},5*60*1000);
 /* active-minute ticker — same contract as mobile (minlog accrues 1/min while visible, feeds the
    40-min ring; cross-device same-day minutes merge as MAX, per both apps' mergeDB) */
+document.addEventListener("visibilitychange",()=>{
+  if(!FOCUS)return;
+  if(document.visibilityState==="hidden")FOCUS.hidAt=Date.now();
+  else if(FOCUS.hidAt){FOCUS.t0+=Date.now()-FOCUS.hidAt;FOCUS.hidAt=null;}
+});
 setInterval(()=>{
   if(token()&&document.visibilityState==="visible"&&DATALOADED){logMin(1);saveLocal();
     const c=document.querySelector("#minchip");if(c)c.textContent="⏱ "+Math.round(activeMinToday())+"/40 min";}
