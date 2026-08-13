@@ -575,6 +575,29 @@ nav button{font-size:11.5px}
 .d-skim .learn,.d-skim .secdiv{display:none}
 .d-skim .richnote [data-k]:not([data-k=takeaway]):not([data-k=numbers]){display:none}
 .d-understand .richnote [data-k=ask],.d-understand .richnote [data-k=wrong],.d-understand .richnote [data-k=analogy],.d-understand .richnote [data-k=test],.d-understand .richnote [data-k=example],.d-understand .richnote [data-k=how],.d-understand .richnote [data-k=rule],.d-understand .richnote [data-k=src]{display:none}
+/* v52: project tree */
+.ptree{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 0;margin-bottom:10px;overflow:hidden}
+.prow{display:flex;align-items:center;gap:8px;padding:11px 14px;cursor:pointer;position:relative}
+.prow+.prow{border-top:1px solid var(--line)}
+.prow .pchev{width:18px;height:18px;display:flex;align-items:center;justify-content:center;color:var(--ink3);font-size:11px;transition:transform .15s;flex:none}
+.prow.open .pchev{transform:rotate(90deg)}
+.prow .pname{font-weight:600;font-size:14.5px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.prow.psub .pname{font-weight:500;font-size:13.5px}
+.prow .pmeta{display:flex;align-items:center;gap:7px;flex:none}
+.prow .pmn{font-size:11.5px;color:var(--ink3);min-width:16px;text-align:right}
+.prow .ptb{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-size:10.5px;font-weight:700;border-radius:9px;padding:1px 7px}
+.prow.psub{padding-left:26px}
+.prow.psub:before{content:"";position:absolute;left:22px;top:0;bottom:0;width:1px;background:var(--line)}
+.prow.psub .pchev{visibility:hidden}
+.prow .phandle{color:var(--ink3);font-size:15px;padding:4px 6px;touch-action:none;cursor:grab;flex:none}
+.prow.dragging{opacity:.45}
+.prow .pmv{display:flex;gap:2px;flex:none}
+.prow .pmv button{width:26px;height:26px;border:1px solid var(--line);background:var(--card);border-radius:7px;color:var(--ink2);font-size:11px}
+.parch{opacity:.6}
+.learnbox{border:1px dashed color-mix(in srgb,var(--accent) 45%,transparent);border-radius:12px;padding:9px 12px;margin:8px 0}
+.learnbox .lb-t{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.4px;margin-bottom:5px}
+.learnchip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:15px;padding:3px 10px;font-size:12px;margin:0 5px 5px 0;background:var(--card)}
+.projchip{display:inline-block;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--accent);font-size:10px;font-weight:600;border-radius:8px;padding:1px 6px;margin-left:5px;vertical-align:1px}
 </style>
 </head>
 <body>
@@ -590,7 +613,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v51";
+const BUILD="v52";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -1970,19 +1993,63 @@ function vDesk(){
       <span class="tag">${new Date(n.u).toLocaleDateString()}</span></div>`).join(""):
       `<div class="empty"><div class="glyph">✎</div><p style="font-size:14px">Notes live next to your projects — one place for what you're learning at work.<br>Your session drill answers land here too.</p></div>`);
   }
-  const ps=(DB.projects||[]).filter(p=>!p.del).sort((a,b)=>(b.u||0)-(a.u||0));
-  return tabs+(ps.length?ps.map(p=>
-    `<div class="card tap" onclick="APP.project('${p.id}')"><div class="row"><h3 style="font-size:16px">${esc(p.name)}</h3>
-    <span class="pill">${esc(p.status||"active")}</span></div>
-    <div class="body">${esc(p.summary||"")}</div></div>`).join(""):
-    `<div class="empty"><div class="glyph">❖</div><p style="font-size:14px">Ask Claude to feed projects from your meetings.</p></div>`)+
-    `<div class="btnrow"><button class="btn" onclick="APP.editProject()">+ New project</button></div>`;
+  return tabs+projTree();
+}
+/* ---------- v52: project tree ---------- */
+let PROJOPEN={},PROJORG=false,PROJARCH=false;
+function projList(){return (DB.projects||[]).filter(p=>!p.del);}
+function projSort(a,b){return (a.ord||99)-(b.ord||99)||(b.u||0)-(a.u||0);}
+function projKids(id){return projList().filter(p=>p.parent===id&&p.status!=="archived").sort(projSort);}
+function projStats(id,roll){
+  let m=0,t=0;
+  const ids=[id].concat(roll?projKids(id).map(k=>k.id):[]);
+  for(const day of (MEET||[]))for(const mt of (day.meetings||[]))if((mt.proj||[]).some(x=>ids.indexOf(x)>=0))m++;
+  for(const k in (DB.todos||{})){const td=DB.todos[k];if(td&&!td.del&&!td.done&&ids.indexOf(td.p)>=0)t++;}
+  return {m,t};
+}
+function projRow(p,sub,sibs,idx){
+  const st=projStats(p.id,!sub);
+  const kids=sub?[]:projKids(p.id);
+  const open=PROJOPEN[p.id]!==undefined?PROJOPEN[p.id]:true;
+  const meta=PROJORG
+    ?`<span class="pmv"><button onclick="event.stopPropagation();APP.projMove('${p.id}',-1)" ${idx===0?"disabled style='opacity:.3'":""}>▲</button><button onclick="event.stopPropagation();APP.projMove('${p.id}',1)" ${idx===sibs.length-1?"disabled style='opacity:.3'":""}>▼</button></span><span class="phandle" data-pid="${p.id}" onpointerdown="APP.projDrag(event,'${p.id}')">⠿</span>`
+    :`<span class="pmn">${st.m||""}</span>${st.t?`<span class="ptb">${st.t}</span>`:""}`;
+  return `<div class="prow ${sub?"psub":""} ${(!sub&&kids.length&&open)?"open":""}" data-pid="${p.id}" data-lvl="${sub?1:0}"
+    onclick="${PROJORG?`APP.projSheet('${p.id}')`:`APP.project('${p.id}')`}">
+    ${sub?`<span class="pchev">›</span>`:`<span class="pchev" onclick="event.stopPropagation();APP.projTog('${p.id}')">${kids.length?"▶":""}</span>`}
+    <span class="pname">${esc(p.name)}</span>${p.status&&p.status!=="active"?`<span class="pill" style="font-size:9.5px">${esc(p.status)}</span>`:""}
+    <span class="pmeta">${meta}</span></div>`+
+    ((!sub&&open)?kids.map((k,i)=>projRow(k,true,kids,i)).join(""):"");
+}
+function projTree(){
+  const parents=projList().filter(p=>!p.parent&&p.status!=="archived").sort(projSort);
+  const arch=projList().filter(p=>p.status==="archived");
+  let html=`<div class="row" style="margin-bottom:6px"><span class="eyebrow">Projects</span>
+    <span><button class="btn small ghost" onclick="APP.projOrg()">${PROJORG?"✓ Done":"✎ Organize"}</button>
+    ${PROJORG?`<button class="btn small" onclick="APP.editProject()" style="margin-left:6px">＋ Project</button>`:""}</span></div>`;
+  html+=parents.length?`<div class="ptree" id="ptree">${parents.map((p,i)=>projRow(p,false,parents,i)).join("")}</div>`
+    :`<div class="empty"><div class="glyph">❖</div><p style="font-size:14px">No projects yet — ＋ Project to start.</p></div>`;
+  if(PROJORG)html+=`<p class="dim" style="font-size:11.5px">Tap a row to rename / move / add a sub-project / archive. Drag ⠿ or use ▲▼ to reorder.</p>`;
+  if(arch.length)html+=`<div class="eyebrow" style="margin:14px 0 4px;cursor:pointer" onclick="APP.projArch()">Archived · ${arch.length} ${PROJARCH?"▾":"▸"}</div>`+
+    (PROJARCH?`<div class="ptree parch">${arch.map(p=>`<div class="prow" onclick="APP.project('${p.id}')"><span class="pchev"></span><span class="pname">${esc(p.name)}</span><span class="pmeta"><button class="btn small ghost" onclick="event.stopPropagation();APP.projRestore('${p.id}')">↩︎</button></span></div>`).join("")}</div>`:"");
+  if(!PROJORG)html+=`<div class="btnrow"><button class="btn" onclick="APP.editProject()">+ New project</button></div>`;
+  return html;
 }
 const TODO_TAGS=[["","None"],["critical","Critical"],["waiting","Waiting"],["quick","Quick win"]];
 function syncTodos(){
   DB.todos=DB.todos||{};DB.todoOrder=DB.todoOrder||[];
   for(const day of (MEET||[]))for(const m of (day.meetings||[]))for(const t of (m.tasks||[])){
     if(!DB.todos[t.id]){DB.todos[t.id]={t:t.t,src:m.title||"Meeting",d:day.date||""};DB.todoOrder.push(t.id);}
+    if(t.p&&!DB.todos[t.id].p)DB.todos[t.id].p=t.p;
+  }
+  /* v52: adopt orphans — cross-device merge unions todos but keeps local todoOrder */
+  const orph=[];for(const id in DB.todos)if(DB.todoOrder.indexOf(id)<0)orph.push(id);
+  orph.sort((a,b)=>((DB.todos[a].d||"")+a).localeCompare((DB.todos[b].d||"")+b));
+  for(const id of orph)DB.todoOrder.push(id);
+  /* v52: consume evidence-based closures from the daily brief */
+  for(const day of (MEET||[]))for(const c of (day.closed||[])){
+    const td=DB.todos[c.id];
+    if(td&&!td.del&&!td.done){td.done=Date.now();td.auto=c.why||"closed by brief";DB.meetTasks=DB.meetTasks||{};DB.meetTasks[c.id]={done:1,at:td.done};}
   }
   // meeting-tab checkboxes count as done here too
   for(const id of Object.keys(DB.meetTasks||{}))if(DB.todos[id]&&!DB.todos[id].del&&!DB.todos[id].done)DB.todos[id].done=(DB.meetTasks[id].at||Date.now());
@@ -1996,12 +2063,13 @@ function todoRow(id,idx,openIds){
     <button class="tcheck" onclick="APP.todoToggle('${id}')" aria-label="${t.done?"Reopen":"Complete"}">${t.done?"✓":""}</button>
     <div class="tbody" onclick="APP.todoSheet('${id}')">
       <div class="tt">${tag}${esc(t.t)}</div>
-      <div class="tmeta">${esc(t.src||"")}${t.d?" · "+esc(t.d):""}${t.done?" · done "+new Date(t.done).toLocaleDateString():""}</div></div>
+      <div class="tmeta">${esc(t.src||"")}${t.d?" · "+esc(t.d):""}${t.done?" · "+(t.auto?"auto ✓ "+esc(String(t.auto)):"done "+new Date(t.done).toLocaleDateString()):""}</div></div>
     ${!t.done?`<span class="tmv">
       <button onclick="APP.todoMove('${id}',-1)" aria-label="Move up" ${idx===0?"disabled style='opacity:.3'":""}>▲</button>
       <button onclick="APP.todoMove('${id}',1)" aria-label="Move down" ${idx===openIds.length-1?"disabled style='opacity:.3'":""}>▼</button></span>`:""}
   </div>`;
 }
+function projName(id){const p=(DB.projects||[]).find(x=>x.id===id);return p?p.name:null;}
 function vTodos(){
   syncTodos();
   const open=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&!t.done;});
@@ -2009,8 +2077,19 @@ function vTodos(){
     .sort((a,b)=>(DB.todos[b].done||0)-(DB.todos[a].done||0));
   let html=`<div class="row" style="margin-bottom:4px"><span class="eyebrow">To do${open.length?` · ${open.length}`:""}</span>
     <button class="btn small ghost" onclick="APP.todoAdd()">＋ Add task</button></div>`;
-  html+=open.length?`<div class="card lux" style="padding:4px 12px">${open.map((id,i)=>todoRow(id,i,open)).join("")}</div>`
-    :`<div class="empty" style="padding:26px 16px"><div class="glyph">☑</div><p style="font-size:13.5px">Nothing open. Follow-ups from meeting briefs land here automatically.</p></div>`;
+  if(open.length){
+    /* v52: group by project, registry order; unfiled last */
+    const groups=[],seen={};
+    const gp=id=>{const t=DB.todos[id];return (t.p&&projName(t.p))?t.p:"";};
+    for(const id of open){const g=gp(id);if(seen[g]===undefined){seen[g]=groups.length;groups.push({g,ids:[]});}groups[seen[g]].ids.push(id);}
+    groups.sort((a,b)=>{if(!a.g)return 1;if(!b.g)return -1;
+      const pa=(DB.projects||[]).find(x=>x.id===a.g)||{},pb=(DB.projects||[]).find(x=>x.id===b.g)||{};
+      return ((pa.parent?1000:0)+(pa.ord||99))-((pb.parent?1000:0)+(pb.ord||99));});
+    for(const grp of groups){
+      html+=`<div class="eyebrow" style="margin:12px 0 4px;font-size:10.5px">${grp.g?esc(projName(grp.g)):"Other"} · ${grp.ids.length}</div>`;
+      html+=`<div class="card lux" style="padding:4px 12px">${grp.ids.map((id,i)=>todoRow(id,i,grp.ids)).join("")}</div>`;
+    }
+  } else html+=`<div class="empty" style="padding:26px 16px"><div class="glyph">☑</div><p style="font-size:13.5px">Nothing open. Follow-ups from meeting briefs land here automatically.</p></div>`;
   if(done.length)html+=`<div class="eyebrow" style="margin:18px 0 4px">Completed · ${done.length}</div>
     <div class="card" style="padding:4px 12px;opacity:.85">${done.map((id,i)=>todoRow(id,i,done)).join("")}</div>`;
   html+=`<p class="dim" style="font-size:11.5px;margin-top:12px">Tap a task to edit, tag, or delete. ✓ syncs with the Meetings tab checkboxes.</p>`;
@@ -2027,12 +2106,17 @@ function vMeetings(){
     const openTasks=(day.meetings||[]).flatMap(m=>m.tasks||[]).filter(t=>!(DB.meetTasks||{})[t.id]);
     html+=`<div class="row" style="margin:12px 0 6px"><div class="eyebrow">${esc(day.date)}${day.label?" · "+esc(day.label):""}</div>
       ${openTasks.length?`<span class="badge">${openTasks.length} open</span>`:`<span class="dim" style="font-size:11.5px">all done ✓</span>`}</div>`;
+    if((day.learn||[]).length){
+      const kic={read:"📖",review:"🔁",gap:"🧭"};
+      html+=`<div class="learnbox"><div class="lb-t">📚 FROM YOUR MEETINGS</div>`+
+        day.learn.map(l=>`<span class="learnchip" onclick="APP.learnTap('${esc(l.tid)}','${esc(l.kind)}')">${kic[l.kind]||"📖"} ${esc(l.name)}</span>`).join("")+`</div>`;
+    }
     (day.meetings||[]).forEach((m,mi)=>{
       const key="meet."+m.id;
       const tasks=m.tasks||[];
       const openN=tasks.filter(t=>!(DB.meetTasks||{})[t.id]).length;
       html+=`<details class="newsitem" ${uiOpen(key,days[0]===day&&mi===0)?"open":""} ontoggle="APP.uiTog('${key}',this.open)">
-      <summary>${esc(m.title)}<span class="nd">${esc(m.time||"")}${openN?` · ${openN} ☐`:""}</span></summary>
+      <summary>${esc(m.title)}${(m.proj||[]).slice(0,2).map(pid=>{const n=projName(pid);return n?`<span class="projchip">${esc(n)}</span>`:"";}).join("")}<span class="nd">${esc(m.time||"")}${openN?` · ${openN} ☐`:""}</span></summary>
       <div class="body" style="padding:2px 2px 12px">
         <div class="prose" style="font-size:14px">${md(m.summary||"")}</div>
         ${tasks.length?`<div class="eyebrow" style="margin:10px 0 4px">Follow-ups</div>`+tasks.map(t=>{
@@ -2060,11 +2144,21 @@ function vProject(){
   const p=(DB.projects||[]).find(x=>x.id===VIEW.p);if(!p){REVTAB="projects";return vReview();}
   const sec=(label,arr)=>arr&&arr.length?`<div class="eyebrow" style="margin-top:16px">${label}</div>
     <ul style="margin:6px 0 0 18px">${arr.map(x=>`<li style="margin-bottom:8px;font-size:14.5px;color:var(--ink2)">${esc(x)}</li>`).join("")}</ul>`:"";
+  syncTodos();
+  const par=p.parent?(DB.projects||[]).find(x=>x.id===p.parent):null;
+  const kids=projKids(p.id);
+  const pm=[];for(const day of (MEET||[]))for(const m of (day.meetings||[]))if((m.proj||[]).indexOf(p.id)>=0)pm.push({d:day.date,t:m.title,time:m.time});
+  const pt=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&!t.done&&t.p===p.id;});
   return header("Project")+`<button class="back" onclick="APP.rev('projects')">← Projects</button>
   <div class="row"><h2 style="font-size:21px">${esc(p.name)}</h2><span class="pill">${esc(p.status||"active")}</span></div>
+  ${par?`<p class="dim" style="font-size:12px;margin-top:2px" onclick="APP.project('${par.id}')">↳ part of <b>${esc(par.name)}</b></p>`:""}
   <p class="muted" style="margin-top:6px;font-size:14.5px">${esc(p.summary||"")}</p>
+  ${kids.length?`<div class="eyebrow" style="margin-top:14px">Sub-projects</div><div class="ptree" style="margin-top:6px">${kids.map(k=>`<div class="prow" onclick="APP.project('${k.id}')"><span class="pchev">›</span><span class="pname">${esc(k.name)}</span><span class="pmeta">${(s=>s.t?`<span class="ptb">${s.t}</span>`:"")(projStats(k.id))}</span></div>`).join("")}</div>`:""}
+  ${pt.length?`<div class="eyebrow" style="margin-top:16px">Open tasks · ${pt.length}</div>`+pt.map(id=>`<label class="ttask" style="cursor:pointer;border-bottom:none;padding:5px 0"><input type="checkbox" onchange="APP.todoToggle('${id}')" style="width:17px;height:17px;accent-color:var(--accent)"><span>${esc(DB.todos[id].t)}</span></label>`).join(""):""}
   ${sec("Remember",p.details)}${sec("Decisions",p.decisions)}${sec("Open questions",p.questions)}
+  ${pm.length?`<div class="eyebrow" style="margin-top:16px">Recent meetings</div>`+pm.slice(0,6).map(x=>`<div class="dim" style="font-size:12.5px;padding:3px 0">${esc(x.d)} · ${esc(x.t)}</div>`).join(""):""}
   <div class="btnrow"><button class="btn small ghost" onclick="APP.editProject('${p.id}')">Edit</button>
+  ${p.status==="archived"?`<button class="btn small" onclick="APP.projRestore('${p.id}')">↩︎ Restore</button>`:`<button class="btn small ghost" onclick="APP.projArchive('${p.id}')">Archive</button>`}
   <button class="btn small danger" onclick="APP.delProject('${p.id}')">Delete</button></div>`;
 }
 
@@ -2797,7 +2891,8 @@ const APP={
     const lines=a=>(a||[]).join("\n");
     openSheet(`<h3>${p?"Edit project":"New project"}</h3>
     <label class="f">Name</label><input type="text" id="pn" value="${esc(p?p.name:"")}">
-    <label class="f">Status</label><select id="ps">${["active","planning","launched","paused"].map(s=>`<option ${p&&p.status===s?"selected":""}>${s}</option>`).join("")}</select>
+    <label class="f">Status</label><select id="ps">${["active","planning","launched","paused","backlog"].map(s=>`<option ${p&&p.status===s?"selected":""}>${s}</option>`).join("")}</select>
+    <label class="f">Parent</label><select id="pp"><option value="">— top level —</option>${(DB.projects||[]).filter(x=>!x.del&&!x.parent&&x.status!=="archived"&&(!p||x.id!==p.id)).sort(projSort).map(x=>`<option value="${x.id}" ${p&&p.parent===x.id?"selected":""}>${esc(x.name)}</option>`).join("")}</select>
     <label class="f">One-line summary</label><input type="text" id="psu" value="${esc(p?p.summary:"")}">
     <label class="f">Details — one per line</label><textarea id="pd">${esc(lines(p&&p.details))}</textarea>
     <label class="f">Decisions — one per line</label><textarea id="pde">${esc(lines(p&&p.decisions))}</textarea>
@@ -2807,12 +2902,59 @@ const APP={
   saveProject(id){
     const split=v=>v.split("\n").map(x=>x.trim()).filter(Boolean);
     const data={name:$("#pn").value.trim(),status:$("#ps").value,summary:$("#psu").value.trim(),
-      details:split($("#pd").value),decisions:split($("#pde").value),questions:split($("#pq").value),u:Date.now()};
+      details:split($("#pd").value),decisions:split($("#pde").value),questions:split($("#pq").value),
+      parent:($("#pp")&&$("#pp").value)||null,u:Date.now()};
     if(!data.name)return;
     if(id){Object.assign(DB.projects.find(x=>x.id===id),data);}
-    else{data.id="p"+Date.now();DB.projects.push(data);}
+    else{data.id="p"+Date.now();data.ord=1+Math.max(0,...(DB.projects||[]).filter(x=>!x.del&&(x.parent||null)===(data.parent||null)).map(x=>x.ord||0));DB.projects.push(data);}
     saveLocal();closeSheet();REVTAB="projects";deskTab="projects";nav("review");toast("Saved");},
-  delProject(id){const p=DB.projects.find(x=>x.id===id);if(p){p.del=true;p.u=Date.now();saveLocal();}REVTAB="projects";deskTab="projects";nav("review");},
+  delProject(id){if(!confirm("Delete this project? (Archive keeps it recoverable)"))return;
+    const p=DB.projects.find(x=>x.id===id);if(p){p.del=true;p.u=Date.now();saveLocal();}REVTAB="projects";deskTab="projects";nav("review");},
+  projTog(id){PROJOPEN[id]=PROJOPEN[id]===undefined?false:!PROJOPEN[id];render();},
+  projOrg(){PROJORG=!PROJORG;render();},
+  projArch(){PROJARCH=!PROJARCH;render();},
+  projArchive(id){const p=DB.projects.find(x=>x.id===id);if(p){p.status="archived";p.u=Date.now();saveLocal();}REVTAB="projects";nav("review");toast("Archived");},
+  projRestore(id){const p=DB.projects.find(x=>x.id===id);if(p){p.status="active";p.u=Date.now();saveLocal();render();toast("Restored");}},
+  projSibs(id){const p=DB.projects.find(x=>x.id===id);
+    return (DB.projects||[]).filter(x=>!x.del&&x.status!=="archived"&&(x.parent||null)===(p.parent||null)).sort(projSort);},
+  projMove(id,d){const sibs=APP.projSibs(id);const i=sibs.findIndex(x=>x.id===id),j=i+d;
+    if(i<0||j<0||j>=sibs.length)return;
+    [sibs[i],sibs[j]]=[sibs[j],sibs[i]];
+    sibs.forEach((x,n)=>{x.ord=n+1;x.u=Date.now();});saveLocal();render();},
+  projSheet(id){const p=DB.projects.find(x=>x.id===id);if(!p)return;
+    openSheet(`<h3>${esc(p.name)}</h3>
+    <div class="btnrow" style="flex-direction:column;align-items:stretch;gap:8px">
+    <button class="btn" onclick="APP.closeSheet();APP.editProject('${id}')">✎ Rename / edit / move</button>
+    ${!p.parent?`<button class="btn" onclick="APP.closeSheet();APP.addSub('${id}')">＋ Add sub-project</button>`:""}
+    <button class="btn ghost" onclick="APP.closeSheet();APP.projArchive('${id}')">Archive</button>
+    <button class="btn ghost" onclick="APP.closeSheet()">Cancel</button></div>`);},
+  addSub(parentId){APP.editProject();setTimeout(()=>{const s=$("#pp");if(s)s.value=parentId;},0);},
+  projDrag(ev,id){
+    ev.preventDefault();ev.stopPropagation();
+    const row=document.querySelector(`.prow[data-pid="${id}"]`);if(!row)return;
+    row.classList.add("dragging");row.setPointerCapture&&ev.target.setPointerCapture(ev.pointerId);
+    const lvl=row.getAttribute("data-lvl");
+    const move=e=>{
+      const el=document.elementFromPoint(e.clientX,e.clientY);
+      const over=el&&el.closest?el.closest(`.prow[data-lvl="${lvl}"]`):null;
+      if(!over||over===row)return;
+      const oid=over.getAttribute("data-pid");
+      const sibs=APP.projSibs(id);
+      const i=sibs.findIndex(x=>x.id===id),j=sibs.findIndex(x=>x.id===oid);
+      if(i<0||j<0||i===j)return;
+      const [m]=sibs.splice(i,1);sibs.splice(j,0,m);
+      sibs.forEach((x,n)=>{x.ord=n+1;x.u=Date.now();});
+      render();
+      const nr=document.querySelector(`.prow[data-pid="${id}"]`);if(nr)nr.classList.add("dragging");
+    };
+    const up=()=>{document.removeEventListener("pointermove",move);document.removeEventListener("pointerup",up);
+      const nr=document.querySelector(`.prow[data-pid="${id}"]`);if(nr)nr.classList.remove("dragging");
+      saveLocal();};
+    document.addEventListener("pointermove",move);document.addEventListener("pointerup",up);},
+  learnTap(tid,kind){
+    const ex=(DATA.items||[]).some(i=>i.id===tid);
+    if(ex)APP.item(tid);
+    else toast(kind==="gap"?"No lesson yet — logged as a curriculum gap":"Lesson not in the app yet");},
   closeSheet,
   settings(){
     openSheet(`<h3>Settings</h3>
