@@ -598,6 +598,39 @@ nav button{font-size:11.5px}
 .learnbox .lb-t{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.4px;margin-bottom:5px}
 .learnchip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);border-radius:15px;padding:3px 10px;font-size:12px;margin:0 5px 5px 0;background:var(--card)}
 .projchip{display:inline-block;background:color-mix(in srgb,var(--accent) 9%,transparent);color:var(--accent);font-size:10px;font-weight:600;border-radius:8px;padding:1px 6px;margin-left:5px;vertical-align:1px}
+/* v53: meetings readability */
+.meetday{display:flex;align-items:baseline;gap:8px;margin:18px 2px 8px}
+.meetday .md-d{font-size:15px;font-weight:700;letter-spacing:-.2px}
+.meetday .md-n{font-size:11.5px;color:var(--ink3)}
+.meetitem{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:0;margin-bottom:10px;overflow:hidden}
+.meetitem summary{list-style:none;display:block;padding:13px 16px;cursor:pointer}
+.meetitem summary::-webkit-details-marker{display:none}
+.meetitem .mi-t{font-size:14.5px;font-weight:650;line-height:1.35;letter-spacing:-.1px}
+.meetitem .mi-m{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:11.5px;color:var(--ink3)}
+.meetitem .mi-open{background:color-mix(in srgb,var(--amber) 16%,transparent);color:#8a5a00;border-radius:9px;padding:1px 7px;font-weight:700;font-size:10.5px}
+[data-theme=dark] .meetitem .mi-open{color:var(--amber)}
+.meetitem[open] summary{border-bottom:1px solid var(--line)}
+.meetitem .mi-body{padding:12px 16px 14px}
+.meetprose{font-size:14px;line-height:1.6;color:var(--ink)}
+.meetprose ul{margin:0;padding-left:4px;list-style:none}
+.meetprose li{position:relative;padding:0 0 0 16px;margin:0 0 10px}
+.meetprose li:last-child{margin-bottom:0}
+.meetprose li:before{content:"";position:absolute;left:1px;top:8px;width:6px;height:6px;border-radius:50%;background:color-mix(in srgb,var(--accent) 55%,transparent)}
+.meetprose strong{font-weight:650}
+.meetprose p{margin:0 0 9px}
+.fups{margin-top:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--accent) 4%,transparent);border-radius:11px;padding:9px 12px 5px}
+.fups .fu-t{font-size:10.5px;font-weight:800;letter-spacing:.5px;color:var(--accent);margin-bottom:3px}
+/* v53: task stat chips + groups */
+.tstats{display:flex;gap:8px;margin:2px 0 10px}
+.tstat{flex:1;background:var(--card);border:1px solid var(--line);border-radius:11px;padding:8px 6px;text-align:center}
+.tstat b{display:block;font-size:16.5px;letter-spacing:-.3px}
+.tstat span{font-size:10px;color:var(--ink3);letter-spacing:.4px;text-transform:uppercase}
+.tgroup summary{list-style:none;display:flex;align-items:center;gap:7px;padding:9px 2px 5px;cursor:pointer}
+.tgroup summary::-webkit-details-marker{display:none}
+.tgroup .tg-c{transition:transform .15s;font-size:10px;color:var(--ink3)}
+.tgroup[open] .tg-c{transform:rotate(90deg)}
+.tgroup .tg-n{font-size:11px;font-weight:800;letter-spacing:.5px;text-transform:uppercase;color:var(--ink2)}
+.tgroup .tg-b{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--accent);font-size:10.5px;font-weight:700;border-radius:9px;padding:1px 7px}
 </style>
 </head>
 <body>
@@ -613,7 +646,7 @@ nav button{font-size:11.5px}
 <div id="dzoom"><div class="dzbar"><button onclick="APP.dzRot()">⟳ Rotate</button><button onclick="APP.dzClose()">✕ Close</button></div><div class="dzbody" id="dzbody"></div></div>
 <script>
 /* ===================== QUANTUMLEAP APP ===================== */
-const BUILD="v52";
+const BUILD="v53";
 function ringHTML(pct,col,size){
   size=size||36;const inner=size-9;
   const lbl=pct>=100?"✓":pct+"%";
@@ -2046,6 +2079,8 @@ function syncTodos(){
   const orph=[];for(const id in DB.todos)if(DB.todoOrder.indexOf(id)<0)orph.push(id);
   orph.sort((a,b)=>((DB.todos[a].d||"")+a).localeCompare((DB.todos[b].d||"")+b));
   for(const id of orph)DB.todoOrder.push(id);
+  /* v53: adopt project tags published by the brief (covers tasks older than the window) */
+  for(const day of (MEET||[]))for(const id in (day.ptags||{}))if(DB.todos[id]&&!DB.todos[id].p)DB.todos[id].p=day.ptags[id];
   /* v52: consume evidence-based closures from the daily brief */
   for(const day of (MEET||[]))for(const c of (day.closed||[])){
     const td=DB.todos[c.id];
@@ -2063,7 +2098,7 @@ function todoRow(id,idx,openIds){
     <button class="tcheck" onclick="APP.todoToggle('${id}')" aria-label="${t.done?"Reopen":"Complete"}">${t.done?"✓":""}</button>
     <div class="tbody" onclick="APP.todoSheet('${id}')">
       <div class="tt">${tag}${esc(t.t)}</div>
-      <div class="tmeta">${esc(t.src||"")}${t.d?" · "+esc(t.d):""}${t.done?" · "+(t.auto?"auto ✓ "+esc(String(t.auto)):"done "+new Date(t.done).toLocaleDateString()):""}</div></div>
+      <div class="tmeta">${t.p&&projName(t.p)?`<span class="projchip" style="margin:0 4px 0 0">${esc(projName(t.p))}</span>`:""}${esc(t.src||"")}${t.d?" · "+esc(t.d):""}${t.done?" · "+(t.auto?"auto ✓ "+esc(String(t.auto)):"done "+new Date(t.done).toLocaleDateString()):""}</div></div>
     ${!t.done?`<span class="tmv">
       <button onclick="APP.todoMove('${id}',-1)" aria-label="Move up" ${idx===0?"disabled style='opacity:.3'":""}>▲</button>
       <button onclick="APP.todoMove('${id}',1)" aria-label="Move down" ${idx===openIds.length-1?"disabled style='opacity:.3'":""}>▼</button></span>`:""}
@@ -2075,19 +2110,34 @@ function vTodos(){
   const open=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&!t.done;});
   const done=DB.todoOrder.filter(id=>{const t=DB.todos[id];return t&&!t.del&&t.done;})
     .sort((a,b)=>(DB.todos[b].done||0)-(DB.todos[a].done||0));
-  let html=`<div class="row" style="margin-bottom:4px"><span class="eyebrow">To do${open.length?` · ${open.length}`:""}</span>
+  const AGE=id=>{const d=(DB.todos[id].d||"").slice(0,10);if(!d)return 99;return Math.round((Date.now()-new Date(d+"T12:00").getTime())/864e5);};
+  const stale=open.filter(id=>AGE(id)>=21), fresh=open.filter(id=>AGE(id)<21), week=open.filter(id=>AGE(id)<=7);
+  let html=`<div class="row" style="margin-bottom:4px"><span class="eyebrow">To do</span>
     <button class="btn small ghost" onclick="APP.todoAdd()">＋ Add task</button></div>`;
+  html+=`<div class="tstats"><div class="tstat"><b>${open.length}</b><span>Open</span></div>
+    <div class="tstat"><b>${week.length}</b><span>This week</span></div>
+    <div class="tstat"><b style="color:${stale.length?"var(--amber)":"inherit"}">${stale.length}</b><span>Stale 21d+</span></div></div>`;
   if(open.length){
-    /* v52: group by project, registry order; unfiled last */
-    const groups=[],seen={};
-    const gp=id=>{const t=DB.todos[id];return (t.p&&projName(t.p))?t.p:"";};
-    for(const id of open){const g=gp(id);if(seen[g]===undefined){seen[g]=groups.length;groups.push({g,ids:[]});}groups[seen[g]].ids.push(id);}
-    groups.sort((a,b)=>{if(!a.g)return 1;if(!b.g)return -1;
-      const pa=(DB.projects||[]).find(x=>x.id===a.g)||{},pb=(DB.projects||[]).find(x=>x.id===b.g)||{};
-      return ((pa.parent?1000:0)+(pa.ord||99))-((pb.parent?1000:0)+(pb.ord||99));});
-    for(const grp of groups){
-      html+=`<div class="eyebrow" style="margin:12px 0 4px;font-size:10.5px">${grp.g?esc(projName(grp.g)):"Other"} · ${grp.ids.length}</div>`;
-      html+=`<div class="card lux" style="padding:4px 12px">${grp.ids.map((id,i)=>todoRow(id,i,grp.ids)).join("")}</div>`;
+    const mk=ids=>{const groups=[],seen={};
+      const gp=id=>{const t=DB.todos[id];return (t.p&&projName(t.p))?t.p:"";};
+      for(const id of ids){const g=gp(id);if(seen[g]===undefined){seen[g]=groups.length;groups.push({g,ids:[]});}groups[seen[g]].ids.push(id);}
+      groups.sort((a,b)=>{if(!a.g)return 1;if(!b.g)return -1;
+        const pa=(DB.projects||[]).find(x=>x.id===a.g)||{},pb=(DB.projects||[]).find(x=>x.id===b.g)||{};
+        return ((pa.parent?1000:0)+(pa.ord||99))-((pb.parent?1000:0)+(pb.ord||99));});
+      return groups;};
+    for(const grp of mk(fresh)){
+      const key="todo."+(grp.g||"other");
+      const newest=grp.ids.slice().sort((a,b)=>(DB.todos[b].d||"").localeCompare(DB.todos[a].d||""));
+      html+=`<details class="tgroup" ${uiOpen(key,true)?"open":""} ontoggle="APP.uiTog('${key}',this.open)">
+        <summary><span class="tg-c">▶</span><span class="tg-n">${grp.g?esc(projName(grp.g)):"Other"}</span><span class="tg-b">${grp.ids.length}</span></summary>
+        <div class="card lux" style="padding:4px 12px;margin-bottom:6px">${newest.map((id,i)=>todoRow(id,i,newest)).join("")}</div></details>`;
+    }
+    if(stale.length){
+      const sNew=stale.slice().sort((a,b)=>(DB.todos[b].d||"").localeCompare(DB.todos[a].d||""));
+      html+=`<details class="tgroup" ${uiOpen("todo.stale",false)?"open":""} ontoggle="APP.uiTog('todo.stale',this.open)">
+        <summary><span class="tg-c">▶</span><span class="tg-n" style="color:var(--ink3)">Older · review &amp; clear</span><span class="tg-b" style="background:color-mix(in srgb,var(--amber) 16%,transparent);color:#8a5a00">${stale.length}</span></summary>
+        <p class="dim" style="font-size:11.5px;margin:2px 0 6px">Tasks 3+ weeks old. Thursday's report surfaces the top of this pile; tick ✓ or delete what's dead.</p>
+        <div class="card" style="padding:4px 12px;margin-bottom:6px;opacity:.9">${sNew.map((id,i)=>todoRow(id,i,sNew)).join("")}</div></details>`;
     }
   } else html+=`<div class="empty" style="padding:26px 16px"><div class="glyph">☑</div><p style="font-size:13.5px">Nothing open. Follow-ups from meeting briefs land here automatically.</p></div>`;
   if(done.length)html+=`<div class="eyebrow" style="margin:18px 0 4px">Completed · ${done.length}</div>
@@ -2104,8 +2154,10 @@ function vMeetings(){
   let html=`<div class="btnrow" style="margin-bottom:6px;justify-content:flex-end"><button class="btn small ghost" onclick="fetchMeetings();toast('Refreshing…')">↻</button></div>`;
   for(const day of days.slice(0,7)){
     const openTasks=(day.meetings||[]).flatMap(m=>m.tasks||[]).filter(t=>!(DB.meetTasks||{})[t.id]);
-    html+=`<div class="row" style="margin:12px 0 6px"><div class="eyebrow">${esc(day.date)}${day.label?" · "+esc(day.label):""}</div>
-      ${openTasks.length?`<span class="badge">${openTasks.length} open</span>`:`<span class="dim" style="font-size:11.5px">all done ✓</span>`}</div>`;
+    const dd=new Date(day.date+"T12:00");
+    const dlab=isNaN(dd)?day.date:dd.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+    html+=`<div class="meetday"><span class="md-d">${esc(dlab)}</span><span class="md-n">${esc(day.label||"")}</span>
+      <span style="flex:1"></span>${openTasks.length?`<span class="badge">${openTasks.length} open</span>`:`<span class="dim" style="font-size:11.5px">all done ✓</span>`}</div>`;
     if((day.learn||[]).length){
       const kic={read:"📖",review:"🔁",gap:"🧭"};
       html+=`<div class="learnbox"><div class="lb-t">📚 FROM YOUR MEETINGS</div>`+
@@ -2115,15 +2167,17 @@ function vMeetings(){
       const key="meet."+m.id;
       const tasks=m.tasks||[];
       const openN=tasks.filter(t=>!(DB.meetTasks||{})[t.id]).length;
-      html+=`<details class="newsitem" ${uiOpen(key,days[0]===day&&mi===0)?"open":""} ontoggle="APP.uiTog('${key}',this.open)">
-      <summary>${esc(m.title)}${(m.proj||[]).slice(0,2).map(pid=>{const n=projName(pid);return n?`<span class="projchip">${esc(n)}</span>`:"";}).join("")}<span class="nd">${esc(m.time||"")}${openN?` · ${openN} ☐`:""}</span></summary>
-      <div class="body" style="padding:2px 2px 12px">
-        <div class="prose" style="font-size:14px">${md(m.summary||"")}</div>
-        ${tasks.length?`<div class="eyebrow" style="margin:10px 0 4px">Follow-ups</div>`+tasks.map(t=>{
+      html+=`<details class="meetitem" ${uiOpen(key,days[0]===day&&mi===0)?"open":""} ontoggle="APP.uiTog('${key}',this.open)">
+      <summary><div class="mi-t">${esc(m.title)}</div>
+        <div class="mi-m">${esc(m.time||"")}${(m.proj||[]).slice(0,2).map(pid=>{const n=projName(pid);return n?`<span class="projchip" style="margin-left:0">${esc(n)}</span>`:"";}).join("")}
+        <span style="flex:1"></span>${openN?`<span class="mi-open">${openN} open</span>`:tasks.length?`<span class="dim">✓</span>`:""}</div></summary>
+      <div class="mi-body">
+        <div class="meetprose">${md(m.summary||"")}</div>
+        ${tasks.length?`<div class="fups"><div class="fu-t">FOLLOW-UPS</div>`+tasks.map(t=>{
           const done=!!(DB.meetTasks||{})[t.id];
-          return `<label class="ttask ${done?"done":""}" style="cursor:pointer;border-bottom:none;padding:5px 0">
-            <input type="checkbox" ${done?"checked":""} onchange="APP.meetTask('${t.id}',this.checked)" style="width:17px;height:17px;accent-color:var(--accent)">
-            <span>${esc(t.t)}</span></label>`;}).join(""):""}
+          return `<label class="ttask ${done?"done":""}" style="cursor:pointer;border-bottom:none;padding:6px 0">
+            <input type="checkbox" ${done?"checked":""} onchange="APP.meetTask('${t.id}',this.checked)" style="width:17px;height:17px;accent-color:var(--accent);flex:none">
+            <span>${esc(t.t)}</span></label>`;}).join("")+`</div>`:""}
       </div></details>`;
     });
   }
