@@ -561,6 +561,10 @@ nav button{font-size:11.5px}
 .crow.lesson:active{background:var(--accent-soft)}
 .cdot{width:7px;height:7px;border-radius:50%;background:var(--line);flex:none}
 .cdot.on{background:#2f6fd0}
+/* .done overrides .on: blue still means "lesson exists" (unread), green means the user has
+   actually completed it -- these are different facts about the topic, so both states stay
+   available; .done just needs to win the cascade, hence declared after .on. */
+.cdot.done{background:var(--green)}
 .ctt{flex:1;line-height:1.3}.ctt.dim{color:var(--ink3)}
 .clesson{font-size:10px;font-weight:800;color:#2f6fd0;white-space:nowrap}
 .pbadge{font-size:9.5px;font-weight:800;border-radius:4px;padding:1px 5px;white-space:nowrap}
@@ -1407,7 +1411,7 @@ function vCurriculum(){
       body=`<div style="padding:0 4px 8px">`+p.subs.map(s=>{
         const rows=s.topics.map(t=>{
           const b=`<span class="pbadge ${t.pri.toLowerCase()}">${t.pri}</span>`;
-          if(t.note)return `<div class="crow lesson" onclick="event.stopPropagation();nav('item','${t.id}')"><span class="cdot on"></span><span class="cid">${t.id}</span><span class="ctt">${esc(t.t)}</span>${b}<span class="clesson">LESSON ›</span></div>`;
+          if(t.note)return `<div class="crow lesson" onclick="event.stopPropagation();nav('item','${t.id}')"><span class="cdot on${DB.done[t.id]?" done":""}" title="${DB.done[t.id]?"Completed":"Lesson available"}"></span><span class="cid">${t.id}</span><span class="ctt">${esc(t.t)}</span>${b}<span class="clesson">LESSON ›</span></div>`;
           return `<div class="crow" onclick="event.stopPropagation();toast('${t.id}: lesson not written yet — ask Claude to author it')"><span class="cdot"></span><span class="cid dim">${t.id}</span><span class="ctt dim">${esc(t.t)}</span>${b}</div>`;
         }).join("");
         return `<div class="csub">${esc(s.code)} · ${esc(s.name)}<span class="csubn">${s.topics.length}</span></div>${rows}`;
