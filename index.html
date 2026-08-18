@@ -278,9 +278,12 @@ details.help a{color:var(--accent)}
 .legend{font-size:12.5px;color:var(--ink2);line-height:1.9}
 .legend b{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:7px}
 .stagenav{display:flex;gap:6px;margin:10px 0 14px}
-.stagenav button{flex:1;border:1px solid var(--line2);background:var(--card);color:var(--ink3);border-radius:10px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer}
+.stagenav button{position:relative;flex:1;border:1px solid var(--line2);background:var(--card);color:var(--ink3);border-radius:10px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer}
 .stagenav button.cur{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
 .stagenav button.avail{color:var(--ink2)}
+/* Small completion badge on the Master stage button — the only in-page cue (besides the list-view
+   dot) that a topic has been marked done. */
+.donebadge{position:absolute;top:-4px;right:-4px;width:9px;height:9px;border-radius:50%;background:var(--green);border:2px solid var(--bg)}
 details.prev{border:1px solid var(--line2);border-radius:12px;padding:10px 14px;margin-top:10px}
 details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:pointer}
 .filelist{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
@@ -343,17 +346,23 @@ details.prev summary{font-size:13px;font-weight:600;color:var(--ink3);cursor:poi
 /* FAB speed-dial (replaces .itembar on item pages, v48): single bottom-right icon; hides on
    scroll-down / returns on scroll-up exactly like the nav, so reading mode stays clean */
 .fabwrap{position:fixed;right:14px;bottom:calc(env(safe-area-inset-bottom) + 78px);z-index:40;
-  display:flex;flex-direction:column;align-items:flex-end;gap:9px;transition:opacity .2s;will-change:opacity}
+  display:flex;flex-direction:column;align-items:flex-end;gap:14px;transition:opacity .2s;will-change:opacity}
 /* NOTE: never put a transform on this fixed wrapper — iOS composites transformed fixed elements
    on a lagging layer during scroll, which made the FAB paint mid-screen while hiding/showing.
    Hide is opacity-only; motion effects belong on children (.fab rotate is tap-only, safe). */
 .fabwrap.navhide{opacity:0;pointer-events:none}
+/* .fabmenu and .fab are flex-item siblings of .fabwrap, so their explicit z-index is honored even
+   without `position` set (flex/grid items are a z-index context per spec). .fabmenu sits ABOVE
+   .fab intentionally: it's a fixed-position element and on some viewports (notably iOS Safari's
+   dynamic safe-area/toolbar recalculation) its buttons can end up a few px into the .fab circle's
+   box. Without this, .fab — later in the DOM, so it wins ties — painted over the menu buttons AND
+   ate their taps in the overlap region, so pressing Complete/Favorite/Ask silently did nothing. */
 .fab{width:52px;height:52px;border-radius:50%;border:none;background:var(--accent);color:#fff;
   font-size:24px;line-height:1;box-shadow:0 8px 24px rgba(15,15,30,.28);display:flex;align-items:center;
-  justify-content:center;transition:transform .2s;cursor:pointer}
+  justify-content:center;transition:transform .2s;cursor:pointer;z-index:1}
 .fab.fdone{background:var(--green)}
 .fabwrap.open .fab{transform:rotate(90deg)}
-.fabmenu{display:none;flex-direction:column;align-items:flex-end;gap:8px}
+.fabmenu{display:none;flex-direction:column;align-items:flex-end;gap:8px;z-index:2}
 .fabwrap.open .fabmenu{display:flex}
 .fabact{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:10px 15px;
   font-size:13.5px;font-weight:600;color:var(--ink);box-shadow:0 6px 18px rgba(15,15,30,.16);cursor:pointer}
@@ -1664,12 +1673,15 @@ function vItem(){
   const curRank=laneRank(it.lane);
   const stageBtns=LANES.map(([id,name])=>{
     const r=laneRank(id);
-    if(id===it.lane)return `<button class="cur" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}</button>`;
+    /* Green completion dot lives on the Master button specifically — that's the deepest tier, so
+       "done" there means the topic itself is done, matching the list-view green dot's meaning. */
+    const badge=(id==="master"&&DB.done[it.id])?'<span class="donebadge"></span>':"";
+    if(id===it.lane)return `<button class="cur" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}${badge}</button>`;
     if(r<curRank){
       const has=(LANE_ARTS[id]||[]).some(k=>artifact(it,k));
-      return has?`<button class="avail" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}</button>`:`<button disabled style="opacity:.4">${name}</button>`;
+      return has?`<button class="avail" onclick="APP.stageView('${it.id}','${id}')">${name}${viewLane===id?" ◂":""}${badge}</button>`:`<button disabled style="opacity:.4">${name}</button>`;
     }
-    return `<button onclick="APP.graduateTo('${it.id}','${id}')">↑ ${name}</button>`;
+    return `<button onclick="APP.graduateTo('${it.id}','${id}')">↑ ${name}${badge}</button>`;
   }).join("");
   const backTo=VIEW.from==="today"?["today","← Back to plan"]:["library","← Library"];
   let html=`<div class="reader"><button class="back" onclick="APP.go('${backTo[0]}')">${backTo[1]}</button>
@@ -1689,7 +1701,12 @@ function vItem(){
     if(it.richHtml){
       /* merged Notes fragment — our renderer is the single authority (diagrams, code, citations, sources) */
       if(/data-k=/.test(it.richHtml)){
-        html+=`<div class="lvltabs" id="lvltabs"><button class="lvt" onclick="APP.setLvl('skim',this)">Skim ~15s</button><button class="lvt" onclick="APP.setLvl('understand',this)">Understand</button><button class="lvt on" onclick="APP.setLvl('master',this)">Master</button></div><div class="lvlhint" id="lvlhint"></div><div id="depthwrap" class="d-master">${it.richHtml}</div>`;
+        /* Labels here are deliberately distinct from the .stagenav row above (which also reads
+           "Skim/Understand/Master" — that's a different control, navigating between lane-tier
+           artifacts, not reading depth within this note). Reusing the same words made the two
+           rows look like an accidental duplicate; internal state keys (skim/understand/master,
+           the d-skim/d-understand/d-master CSS classes) are unchanged, only the button text. */
+        html+=`<div class="lvltabs" id="lvltabs"><button class="lvt" onclick="APP.setLvl('skim',this)">TL;DR ~15s</button><button class="lvt" onclick="APP.setLvl('understand',this)">Key points</button><button class="lvt on" onclick="APP.setLvl('master',this)">Full note</button></div><div class="lvlhint" id="lvlhint"></div><div id="depthwrap" class="d-master">${it.richHtml}</div>`;
       } else {
         html+=it.richHtml;
       }
@@ -1870,9 +1887,14 @@ function gradeRow(u){
 function laneCol(it){const l=LANE_LEGACY[it.lane]||it.lane;return l==="master"?"var(--green)":l==="understand"?"var(--accent)":"var(--amber)";}
 function lrow(it,from,extra){
   const col=laneCol(it);
-  return `<div class="lrow"><span class="ldot" title="${esc(laneName(LANE_LEGACY[it.lane]||it.lane))}${DB.done[it.id]?" · done":""}" style="border-color:${col};${DB.done[it.id]?"background:"+col:""}"></span>
+  const done=!!DB.done[it.id];
+  /* Completion is shown as solid green regardless of lane — previously a done item just filled
+     with its own lane color (amber/blue/green), which barely read as "done" for filter/understand
+     lane items. Green now means one thing everywhere: this topic is marked complete. */
+  const dotStyle=done?"border-color:var(--green);background:var(--green)":`border-color:${col}`;
+  return `<div class="lrow"><span class="ldot" title="${esc(laneName(LANE_LEGACY[it.lane]||it.lane))}${done?" · done":""}" style="${dotStyle}"></span>
   <span class="lt" onclick="APP.item('${it.id}','${from||"library"}')">${esc(it.title)}${freshDot(it)}</span>
-  ${extra||`<span class="lmeta">${DB.done[it.id]?"✓":"<span style=\'color:var(--ink3)\'>→</span>"}</span>`}</div>`;
+  ${extra||`<span class="lmeta">${done?"✓":"<span style=\'color:var(--ink3)\'>→</span>"}</span>`}</div>`;
 }
 function favSection(){
   DB.favs=DB.favs||{};
@@ -2863,7 +2885,7 @@ const APP={
   checkTyped(){const el=$("#typedIn");SESSION.typed=el?el.value.trim():"";SESSION.shown=true;render();},
   pick(i){SESSION.picked=i;SESSION.shown=true;render();},
   setMode(m){localStorage.setItem("meridian.mode",m);render();},
-  setLvl(l,btn){const w=document.getElementById("depthwrap");if(w)w.className="d-"+l;for(const b of document.querySelectorAll("#lvltabs .lvt"))b.classList.remove("on");if(btn)btn.classList.add("on");const h={skim:"Skim — the claim, the numbers, the takeaway. ~15s.",understand:"Understand — the walkthrough plus the essentials (vs · do · say). The mental model.",master:"Master — the full note: refutations, analogy, sources, full test bank."};const el=document.getElementById("lvlhint");if(el)el.textContent=h[l]||"";},
+  setLvl(l,btn){const w=document.getElementById("depthwrap");if(w)w.className="d-"+l;for(const b of document.querySelectorAll("#lvltabs .lvt"))b.classList.remove("on");if(btn)btn.classList.add("on");const h={skim:"TL;DR — the claim, the numbers, the takeaway. ~15s.",understand:"Key points — the walkthrough plus the essentials (vs · do · say). The mental model.",master:"Full note — refutations, analogy, sources, full test bank."};const el=document.getElementById("lvlhint");if(el)el.textContent=h[l]||"";},
   grade(g){
     const u=SESSION.q[SESSION.i];grade(resolveUnit(u),g);SESSION.doneCount++;
     SESSION.missed=(g===0)?resolveUnit(u):null;
